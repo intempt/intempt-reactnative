@@ -22,17 +22,20 @@ Pod::Spec.new do |s|
   s.preserve_paths = 'LICENSE', 'NOTICE', 'README.md', 'package.json'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
 
-  # PREREQUISITE, not yet satisfiable. As of 2026-08-15 intempt-swift has no
-  # podspec, no git tags, and trunk.cocoapods.org returns 404 for both
-  # 'Intempt' and 'IntemptSDK'. `pod install` cannot resolve this line until
-  # the Swift SDK is published to trunk.
+  # Pinned exactly, not optimistically. 0.1.0 is intempt-swift's first release:
+  # 311 tests pass and the live contract tests run against production, but it
+  # has no mileage in a shipped customer app. A '~> 0.1' would silently pick up
+  # 0.1.1 the day it exists.
   #
-  # The constraint below assumes the pod is named 'Intempt' and first ships as
-  # 0.1.x. Both are assumptions — the iOS session owns the real name and
-  # version, and this line changes to match whatever they publish.
-  # See docs/superpowers/specs/2026-08-15-intempt-reactnative-design.md, open
-  # question 1.
-  s.dependency 'Intempt', '~> 0.1'
+  # Not yet on CocoaPods trunk — `pod trunk push` needs a registered trunk
+  # session, which is an email round-trip against a real account. Until that
+  # happens, a consumer resolves it from git instead:
+  #
+  #   pod 'Intempt', :git => 'https://github.com/intempt/intempt-swift.git',
+  #                  :tag => 'v0.1.0'
+  #
+  # intempt-swift is public as of 2026-08-15, so that resolves anonymously.
+  s.dependency 'Intempt', '0.1.0'
 
   # install_modules_dependencies wires React-Core, and on the new architecture
   # also ReactCommon, RCT-Folly, glog and the generated spec. Available in

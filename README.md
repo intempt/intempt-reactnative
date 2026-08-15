@@ -3,7 +3,7 @@
 Intempt SDK for React Native. Wraps [intempt-swift](https://github.com/intempt/intempt-swift)
 on iOS and [intempt-android](https://github.com/intempt/intempt-android) on Android.
 
-> **Not yet releasable.** Two native prerequisites are outstanding — see
+> **Not yet releasable.** One native prerequisite is outstanding — see
 > [Status](#status). The JavaScript layer, the bridge contract and the test suite are
 > complete and reviewable now.
 
@@ -14,10 +14,10 @@ on iOS and [intempt-android](https://github.com/intempt/intempt-android) on Andr
 | JavaScript / TypeScript layer | complete |
 | TurboModule spec + codegen config | complete |
 | Contract fixture corpus | complete, 30 fixtures over 26 methods |
-| iOS native module | complete, unbuildable until the Swift SDK ships a pod |
+| iOS native module | complete, builds against `Intempt` 0.1.0 |
 | Android native module | complete, 13 methods reject until `intempt-android` 3.0 |
-| iOS distribution | **blocked** — `intempt-swift` has no podspec, no tags, no CocoaPods pod |
-| Android distribution | available on Maven Central; needs 3.0 for full conformance |
+| iOS distribution | podspec and tag `v0.1.0` shipped; **not on CocoaPods trunk yet** |
+| Android distribution | on Maven Central; needs 3.0 for full conformance |
 
 ## Install
 
@@ -25,9 +25,18 @@ on iOS and [intempt-android](https://github.com/intempt/intempt-android) on Andr
 npm install intempt-react-native
 ```
 
+The iOS SDK is not on CocoaPods trunk yet, so add it from git in your `Podfile`:
+
+```ruby
+pod 'Intempt', :git => 'https://github.com/intempt/intempt-swift.git', :tag => 'v0.1.0'
+```
+
 ```sh
 cd ios && pod install
 ```
+
+That line goes away once `Intempt` is pushed to trunk. The repository is public, so it
+resolves without authentication.
 
 No JavaScript dependencies. Everything this package needs is generated natively.
 

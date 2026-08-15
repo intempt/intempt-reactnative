@@ -36,7 +36,10 @@ public class IntemptReactNative: NSObject {
         _ reject: @escaping RCTPromiseRejectBlock,
         _ body: (IntemptInstance) throws -> Void
     ) {
-        guard let instance = Intempt.instance(named: name) else {
+        // `instance(named:)` is a static on IntemptInstance, not on the Intempt
+        // enum. The enum holds only SDK-wide constants; the instance registry
+        // lives on the class.
+        guard let instance = IntemptInstance.instance(named: name) else {
             reject(
                 "not_initialized",
                 "Intempt.\(method) called before init() for instance '\(name)'",
@@ -105,7 +108,7 @@ public class IntemptReactNative: NSObject {
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
         do {
-            _ = try Intempt.initialize(
+            _ = try IntemptInstance.initialize(
                 apiKey: apiKey,
                 orgId: orgId,
                 projectId: projectId,

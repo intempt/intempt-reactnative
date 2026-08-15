@@ -128,18 +128,38 @@ identifier this package needs is generated natively.
 
 ## Native prerequisites
 
-### iOS — blocking
+### iOS — resolved the same day
 
-`intempt-swift` cannot be consumed by React Native today. Verified 2026-08-15:
+At the time this spec was first written, `intempt-swift` had no podspec, no git tags, and
+404'd on CocoaPods trunk. Routed to the iOS session; they landed it within hours.
 
-- no `.podspec` in the repository
-- zero git tags
-- `trunk.cocoapods.org/api/v1/pods/Intempt` → 404, `IntemptSDK` → 404
-- `Intempt.sdkVersion` is still `"0.0.1"`
+Current state, verified against the remote:
 
-React Native's iOS integration is CocoaPods, so a podspec, a tag and a trunk push are
-prerequisites. Routed to the iOS session on 2026-08-15. This package's podspec declares
-`s.dependency 'Intempt'` against a version that does not exist yet.
+- `Intempt.podspec` at the repo root, floors matching `Package.swift`
+- tag `v0.1.0` pushed (`b3417ba0`)
+- `sdkVersion` moved off `"0.0.1"` to `"0.1.0"`
+- the repository is **public**, so both SPM and a git-referenced pod resolve anonymously
+
+One prerequisite remains: `pod trunk push` has not run, because registering a trunk
+session is an email round-trip against a real account. Until it does, a consumer resolves
+the dependency from git rather than from trunk:
+
+```ruby
+pod 'Intempt', :git => 'https://github.com/intempt/intempt-swift.git', :tag => 'v0.1.0'
+```
+
+This package pins `'0.1.0'` exactly rather than `'~> 0.1'`. 0.1.0 is a first release —
+311 tests pass and the live contract tests run against production, but it has no mileage
+in a shipped customer app, so picking up a future 0.1.1 automatically is not a trade worth
+making yet.
+
+**Adopt from their podspec:** `PrivacyInfo.xcprivacy` ships via `resource_bundles`, not
+`resources`. The App Store checks for the privacy manifest *inside* a third-party
+framework, and a loose file at app level does not satisfy that check. Also worth copying
+is their `scripts/check-version-sync.sh`, which fails CI when the podspec, the Swift
+constant and the git tag disagree — CocoaPods resolves those three independently, and a
+pod reporting a version it is not only surfaces when someone debugs a ticket against the
+wrong source.
 
 ### Android — available
 
@@ -177,11 +197,37 @@ opaque — found by the Android SDK session before it cost anyone a day here.
 
 ## Open questions
 
-| # | Question | Owner |
-|---|---|---|
-| 1 | Pod name and first real version for `intempt-swift` | iOS session |
-| 2 | Do any of the 58 iOS audit findings block making the pod public | iOS session |
-| 3 | Timeline for `intempt-android` 3.0 contract conformance | Android session / Roman |
-| 4 | Does `app/api/app.api` stay authoritative post-#16 | Android session |
+| # | Question | Owner | State |
+|---|---|---|---|
+| 1 | Pod name and first version for `intempt-swift` | iOS session | **answered** — `Intempt`, `0.1.0` |
+| 2 | Do the iOS audit findings block publishing the pod | iOS session | **answered** — see below |
+| 3 | `pod trunk push` for `Intempt` | iOS session / Sid | open — needs a registered trunk account |
+| 4 | Timeline for `intempt-android` 3.0 contract conformance | Android session / Roman | open |
+| 5 | Does `app/api/app.api` stay authoritative post-#16 | Android session | open |
 
-None block scaffolding. All block release.
+Only 3 and 4 block release.
+
+### Correction: the 58 audit findings are not against `intempt-swift`
+
+An earlier draft of this spec treated the 2026-08-11 audit — 58 findings, including a
+button-tap crash, silent data loss, a dropped super-call in the swizzle, and consent that
+gated nothing — as a risk carried by the SDK this package depends on. That was wrong, and
+it was wrong in the direction that would have delayed a release for no reason.
+
+That audit was against `ios-source` (remote `intempt/intempt-ios`), the deprecated
+Objective-C SDK. `intempt-intemptios` is only a thin SPM wrapper around its prebuilt
+xcframework. The audit is the *reason* `intempt-swift` was written, not a list of open
+defects in it.
+
+`intempt-swift` addresses those findings structurally rather than by patch: `MethodSwizzler`
+uses `class_addMethod` then `class_replaceMethod` and restores both IMPs on removal, a
+batch is deleted only after the server acknowledges it, and `.reject` consent enforces
+rather than merely records.
+
+The real risk to carry is smaller and different: **0.1.0 has no production mileage in a
+customer app.** Hence the exact version pin.
+
+Two API details corrected on the same day, both of which this package's iOS module depends
+on: `initialize` lives on `IntemptInstance`, not on the `Intempt` enum, and autocapture is
+`configure(_:)` plus `start()` rather than settable properties. Autocapture swizzles
+nothing until `start()` is called, which is the right default for React Native.
