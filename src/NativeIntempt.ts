@@ -114,6 +114,13 @@ export interface Spec extends TurboModule {
   getAutomaticEvents(instanceName: string): Promise<Object>;
   setAutomaticEvents(instanceName: string, options: Object): Promise<void>;
 
+  // Autocapture — distinct from automatic events. This one hooks the view
+  // layer, so it installs nothing until start() is called.
+  configureAutocapture(instanceName: string, options: Object): Promise<void>;
+  startAutocapture(instanceName: string): Promise<void>;
+  stopAutocapture(instanceName: string): Promise<void>;
+  isAutocaptureRunning(instanceName: string): Promise<boolean>;
+
   // Push
   setPushToken(instanceName: string, token: string): Promise<boolean>;
   trackPushOpen(instanceName: string, payload: Object): Promise<boolean>;

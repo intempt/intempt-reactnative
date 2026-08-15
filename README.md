@@ -180,6 +180,31 @@ await intempt.setAutomaticEvents({
 Only `sessions` is on by default. An SDK that silently emits events you never asked for
 is how an event-volume bill surprises someone.
 
+### Autocapture
+
+Different from automatic events, and easy to confuse with them. Automatic events are
+lifecycle facts the SDK already knows. **Autocapture hooks the view layer** — on iOS it
+swizzles UIKit — so it installs nothing until you start it.
+
+```ts
+await intempt.autocapture.configure({
+  screenViews: true,
+  controlInteractions: true,
+});
+await intempt.autocapture.start();
+
+await intempt.autocapture.isRunning();
+await intempt.autocapture.stop();
+```
+
+`configure()` alone changes nothing. `start()` is the point at which instrumentation is
+installed.
+
+The two options map onto finer native ones. On iOS, `screenViews` covers screen
+appearances and exits; `controlInteractions` covers button presses and value changes.
+iOS's `rawTouches` is deliberately **not** exposed here — a tap on a control already emits
+its own event, so enabling raw touches alongside it double-counts every button press.
+
 ### Push
 
 ```ts
@@ -234,8 +259,8 @@ A contract method missing on one platform rejects with `unsupported_on_android` 
 
 Currently unsupported on Android, pending `intempt-android` 3.0: `reset`,
 `getProfileId`, `getSessionId`, `flush`, `getFlushInterval`, `setFlushInterval`,
-`experiments`, `products`, `getAutomaticEvents`, `setAutomaticEvents`, `setPushToken`,
-`trackPushOpen`, `trackPushReceived`.
+`experiments`, `products`, `getAutomaticEvents`, `setAutomaticEvents`, the whole
+`autocapture` object, `setPushToken`, `trackPushOpen`, `trackPushReceived`.
 
 Android also ignores the credentials passed to `init()` until 3.0 — it reads
 `android/app/src/main/assets/intempt-config.json`. `init()` fails loudly when that file

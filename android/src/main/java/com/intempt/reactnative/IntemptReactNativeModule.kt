@@ -368,6 +368,31 @@ class IntemptReactNativeModule(
         )
 
     @ReactMethod
+    fun configureAutocapture(instanceName: String, options: ReadableMap, promise: Promise) =
+        unsupported(
+            promise,
+            "autocapture.configure",
+            "runtime autocapture options; today isTouchEnabled/isTextCaptureEnabled/" +
+                "isAutoCaptureEnabled are read once from the config asset",
+        )
+
+    @ReactMethod
+    fun startAutocapture(instanceName: String, promise: Promise) =
+        unsupported(
+            promise,
+            "autocapture.start",
+            "explicit autocapture lifecycle; Android starts from config at initialize()",
+        )
+
+    @ReactMethod
+    fun stopAutocapture(instanceName: String, promise: Promise) =
+        unsupported(promise, "autocapture.stop", "explicit autocapture lifecycle")
+
+    @ReactMethod
+    fun isAutocaptureRunning(instanceName: String, promise: Promise) =
+        unsupported(promise, "autocapture.isRunning", "explicit autocapture lifecycle")
+
+    @ReactMethod
     fun setPushToken(instanceName: String, token: String, promise: Promise) =
         unsupported(
             promise,

@@ -199,6 +199,29 @@ RCT_EXTERN_METHOD(setAutomaticEvents
                   : (RCTPromiseResolveBlock)resolve rejecter
                   : (RCTPromiseRejectBlock)reject)
 
+// MARK: - Autocapture
+
+RCT_EXTERN_METHOD(configureAutocapture
+                  : (NSString *)instanceName options
+                  : (NSDictionary *)options resolver
+                  : (RCTPromiseResolveBlock)resolve rejecter
+                  : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(startAutocapture
+                  : (NSString *)instanceName resolver
+                  : (RCTPromiseResolveBlock)resolve rejecter
+                  : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(stopAutocapture
+                  : (NSString *)instanceName resolver
+                  : (RCTPromiseResolveBlock)resolve rejecter
+                  : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(isAutocaptureRunning
+                  : (NSString *)instanceName resolver
+                  : (RCTPromiseResolveBlock)resolve rejecter
+                  : (RCTPromiseRejectBlock)reject)
+
 // MARK: - Push
 
 RCT_EXTERN_METHOD(setPushToken

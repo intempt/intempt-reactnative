@@ -18,6 +18,7 @@ import {
   OptimizationType,
 } from './types';
 import type {
+  AutocaptureOptions,
   AutomaticEventOptions,
   ExperimentChoice,
   ExperimentsQuery,
@@ -37,6 +38,7 @@ export {
   IntemptErrorCode,
 };
 export type {
+  AutocaptureOptions,
   AutomaticEventOptions,
   ExperimentChoice,
   ExperimentsQuery,
@@ -403,6 +405,38 @@ export class IntemptInstance {
       NativeIntempt.setAutomaticEvents(this.instanceName, options)
     );
   }
+
+  // MARK: - Autocapture
+
+  /**
+   * UI autocapture. Off until `start()`.
+   *
+   * Separate from `setAutomaticEvents`, which controls lifecycle events the SDK
+   * already knows about. This one hooks the view layer — on iOS it swizzles
+   * UIKit — which is not something an SDK may do merely because it was
+   * initialised.
+   */
+  readonly autocapture = {
+    configure: (options: AutocaptureOptions): Promise<void> =>
+      this.call('configureAutocapture', () =>
+        NativeIntempt.configureAutocapture(this.instanceName, options)
+      ),
+
+    start: (): Promise<void> =>
+      this.call('startAutocapture', () =>
+        NativeIntempt.startAutocapture(this.instanceName)
+      ),
+
+    stop: (): Promise<void> =>
+      this.call('stopAutocapture', () =>
+        NativeIntempt.stopAutocapture(this.instanceName)
+      ),
+
+    isRunning: (): Promise<boolean> =>
+      this.call('isAutocaptureRunning', () =>
+        NativeIntempt.isAutocaptureRunning(this.instanceName)
+      ),
+  };
 
   // MARK: - Push
 

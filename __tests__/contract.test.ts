@@ -63,14 +63,24 @@ describe('contract corpus', () => {
     async (_index, _method, fixture) => {
       const instance = await freshInstance();
 
-      const fn = fixture.js.fn as keyof IntemptInstance;
       const args = (fixture.js.args as unknown[]).map(rehydrate);
 
-      const callable = instance[fn];
+      // `js.fn` may be a dotted path — `autocapture.configure` — because the
+      // contract groups autocapture under its own object rather than flattening
+      // it onto the instance.
+      const path = fixture.js.fn.split('.');
+      const receiver = path
+        .slice(0, -1)
+        .reduce<Record<string, unknown>>(
+          (obj, key) => obj[key] as Record<string, unknown>,
+          instance as unknown as Record<string, unknown>
+        );
+      const callable = receiver[path[path.length - 1]!];
+
       expect(typeof callable).toBe('function');
 
       await (callable as (...a: unknown[]) => Promise<unknown>).apply(
-        instance,
+        receiver,
         args
       );
 

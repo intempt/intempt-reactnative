@@ -519,6 +519,71 @@ public class IntemptReactNative: NSObject {
         }
     }
 
+    // MARK: - Autocapture
+
+    /// Maps the contract's two concepts onto Apple's five options.
+    ///
+    /// `rawTouches` is deliberately left off and is not reachable from
+    /// JavaScript. A tap on a control already emits its own event, so enabling
+    /// raw touches alongside `taps` double-counts every button press. It stays
+    /// in the platform annex for callers using the Swift SDK directly.
+    @objc
+    func configureAutocapture(
+        _ instanceName: String,
+        options: [String: Any],
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        withInstance(instanceName, "autocapture.configure", reject) { instance in
+            let screenViews = options["screenViews"] as? Bool ?? false
+            let controlInteractions = options["controlInteractions"] as? Bool ?? false
+
+            instance.autocapture.configure(
+                AutocaptureOptions(
+                    screens: screenViews,
+                    taps: controlInteractions,
+                    controlChanges: controlInteractions,
+                    screenExits: screenViews,
+                    rawTouches: false))
+            resolve(nil)
+        }
+    }
+
+    @objc
+    func startAutocapture(
+        _ instanceName: String,
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        withInstance(instanceName, "autocapture.start", reject) { instance in
+            instance.autocapture.start()
+            resolve(nil)
+        }
+    }
+
+    @objc
+    func stopAutocapture(
+        _ instanceName: String,
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        withInstance(instanceName, "autocapture.stop", reject) { instance in
+            instance.autocapture.stop()
+            resolve(nil)
+        }
+    }
+
+    @objc
+    func isAutocaptureRunning(
+        _ instanceName: String,
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        withInstance(instanceName, "autocapture.isRunning", reject) {
+            resolve($0.autocapture.isRunning)
+        }
+    }
+
     // MARK: - Push
 
     @objc

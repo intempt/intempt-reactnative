@@ -23,6 +23,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const corpus = JSON.parse(
   readFileSync(join(root, '__tests__/fixtures/contract-corpus.json'), 'utf8')
 );
+const contract = JSON.parse(
+  readFileSync(join(root, '__tests__/fixtures/contract-methods.json'), 'utf8')
+);
 const spec = readFileSync(join(root, 'src/NativeIntempt.ts'), 'utf8');
 
 // Methods declared on the Spec interface. Matches `name(` at an indented line
@@ -34,9 +37,11 @@ const specMethods = [
   ),
 ];
 
-// initialize and getSdkVersion are module-level, not instance methods, so they
-// are exercised by index.test.ts rather than by a corpus fixture.
-const NON_INSTANCE = new Set(['initialize', 'getSdkVersion']);
+// `initialize` is module-level rather than an instance method, and diagnostics
+// carry no contract obligation. Both are exercised by index.test.ts rather than
+// by a corpus fixture.
+const diagnostics = new Set(Object.keys(contract.diagnostics ?? {}));
+const NON_INSTANCE = new Set(['initialize', ...diagnostics]);
 const excluded = new Set(Object.keys(corpus.excludedFromBridge ?? {}));
 
 const expected = specMethods.filter((m) => !NON_INSTANCE.has(m) && !excluded.has(m));
@@ -48,6 +53,30 @@ const unknown = [...covered].filter((m) => !specMethods.includes(m));
 const problems = [];
 if (specMethods.length === 0) {
   problems.push('parsed 0 methods off the spec — the regex no longer matches the file');
+}
+
+// contract -> spec. This is the direction the gate was missing: the corpus
+// check below only proves the spec is fully fixtured, which stays green when a
+// contract method is never bridged at all. Autocapture was added to the
+// contract and shipped absent from this package with the gate passing.
+const contractMethods = Object.keys(contract.methods);
+const unbridged = contractMethods.filter((m) => !specMethods.includes(m));
+if (unbridged.length) {
+  problems.push(
+    `contract methods absent from the TurboModule spec: ${unbridged.join(', ')}`
+  );
+}
+
+// And the reverse, so the spec cannot grow a method the contract never agreed
+// to. A bridge method with no contract entry is drift in the other direction.
+const undocumented = specMethods.filter(
+  (m) => !contractMethods.includes(m) && !diagnostics.has(m)
+);
+if (undocumented.length) {
+  problems.push(
+    `spec methods with no contract entry: ${undocumented.join(', ')} ` +
+      `(add to contract-methods.json methods, or to its diagnostics section)`
+  );
 }
 if (missing.length) {
   problems.push(`spec methods with no fixture: ${missing.join(', ')}`);
@@ -72,7 +101,7 @@ if (problems.length) {
 }
 
 console.log(
-  `corpus check OK — ${specMethods.length} spec methods, ` +
-    `${expected.length} require fixtures, ${corpus.methods.length} fixtures, ` +
-    `${excluded.size} documented exclusion(s)`
+  `corpus check OK — ${contractMethods.length} contract methods, ` +
+    `${specMethods.length} bridged, ${expected.length} require fixtures, ` +
+    `${corpus.methods.length} fixtures, ${excluded.size} documented exclusion(s)`
 );

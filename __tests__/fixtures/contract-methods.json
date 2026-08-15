@@ -1,0 +1,65 @@
+{
+  "$comment": [
+    "The contract's method surface, mirrored from",
+    "intempt-swift/docs/SDK-API-CONTRACT.md.",
+    "",
+    "WHY THIS FILE EXISTS: contract-corpus.json checks that every method on the",
+    "TurboModule spec has a fixture. That is spec -> corpus. Nothing checked",
+    "contract -> spec, so a method could be added to the contract and silently",
+    "never bridged, with a green gate.",
+    "",
+    "That is not hypothetical. Autocapture was added to the contract and this",
+    "package shipped zero autocapture surface; the corpus gate passed anyway,",
+    "and an iOS reviewer caught it rather than CI.",
+    "",
+    "Update this file in the same commit that adopts a contract change. It is",
+    "the local, machine-readable half of a document that lives in another repo."
+  ],
+  "source": "intempt-swift/docs/SDK-API-CONTRACT.md",
+  "syncedAt": "2026-08-15",
+
+  "methods": {
+    "initialize": "init(apiKey, orgId, projectId, sourceId, instanceName)",
+    "track": "track(eventTitle, data?) -> Bool",
+    "identify": "identify(userId, eventTitle, userAttributes?, data?) -> Bool",
+    "group": "group(accountId, eventTitle, accountAttributes?) -> Bool",
+    "alias": "alias(userId, anotherUserId) -> Bool",
+    "record": "record(eventTitle, userId?, accountId?, data?, userAttributes?, accountAttributes?) -> Bool",
+    "productAdd": "productAdd(productId, quantity) -> Bool",
+    "productView": "productView(productId) -> Bool",
+    "productOrdered": "productOrdered(products) -> Bool",
+    "consent": "consent(action, validUntil, email?, message?, category?) -> Bool",
+    "getProfileId": "getProfileId() -> String",
+    "getSessionId": "getSessionId() -> String",
+    "logOut": "logOut()",
+    "reset": "reset()",
+    "optIn": "optIn()",
+    "optOut": "optOut()",
+    "hasOptedOut": "hasOptedOut() -> Bool",
+    "flush": "flush(completion) — completion receives events delivered",
+    "getFlushInterval": "flushInterval getter",
+    "setFlushInterval": "flushInterval setter; 0 disables the timer",
+    "experiments": "experiments(names?, groups?, optimizationType?, productId?)",
+    "products": "products(feedId, count, fields, productId?)",
+    "getAutomaticEvents": "automaticEvents getter",
+    "setAutomaticEvents": "automaticEvents setter",
+    "configureAutocapture": "autocapture.configure({screenViews, controlInteractions})",
+    "startAutocapture": "autocapture.start()",
+    "stopAutocapture": "autocapture.stop()",
+    "isAutocaptureRunning": "autocapture.isRunning",
+    "setPushToken": "setPushToken(token) -> Bool",
+    "trackPushOpen": "trackPushOpen(payload) -> Bool",
+    "trackPushReceived": "trackPushReceived(payload) -> Bool"
+  },
+
+  "diagnostics": {
+    "getSdkVersion": "Bridged, but not a contract method. Reports the NATIVE SDK's version — intempt-swift or intempt-android — which is what someone debugging an integration needs and which no contract method exposes. Kept in its own category rather than notBridged, because it IS on the spec."
+  },
+
+  "notBridged": {
+    "isOptedIn": "Pure JavaScript convenience over hasOptedOut(). Never crosses the bridge, so it has no native method and no fixture.",
+    "doNotCaptureText": "Android-only, takes a native View. No bridge representation and no cross-platform meaning. The contract's one sanctioned permanent exception.",
+    "mainInstance": "Resolved in the JavaScript instance registry; the native side is addressed by instanceName on every call.",
+    "instance": "Same as mainInstance."
+  }
+}

@@ -138,6 +138,26 @@ export interface AutomaticEventOptions {
 }
 
 /**
+ * Which UI interactions the SDK captures without an explicit call.
+ *
+ * Distinct from {@link AutomaticEventOptions}, and repeatedly confused with it.
+ * Automatic events are lifecycle facts the SDK already knows. Autocapture hooks
+ * the view layer — on iOS it swizzles UIKit — so it installs nothing until
+ * `start()` is called.
+ *
+ * The contract exposes the two concepts both platforms have. Finer native
+ * options stay platform-specific: iOS separates `taps` from `rawTouches`
+ * because a button press already emits its own event, and counting it again as
+ * a generic touch would double-count every button in the app.
+ */
+export interface AutocaptureOptions {
+  /** Screen appearances and exits. */
+  screenViews: boolean;
+  /** Presses and value changes on native controls. */
+  controlInteractions: boolean;
+}
+
+/**
  * Catalog columns requested from a recommendation feed by default.
  *
  * Kept identical to `Intempt.defaultFeedFields` in the Swift SDK.

@@ -215,6 +215,31 @@
       "note": "Runtime-settable, not config-file-only. Only sessions default on."
     },
     {
+      "method": "configureAutocapture",
+      "js": { "fn": "autocapture.configure", "args": [{ "screenViews": true, "controlInteractions": false }] },
+      "native": {
+        "fn": "configureAutocapture",
+        "args": ["default", { "screenViews": true, "controlInteractions": false }]
+      },
+      "note": "Distinct from setAutomaticEvents. configure() only sets options — nothing is installed until start(), because on iOS this swizzles UIKit."
+    },
+    {
+      "method": "startAutocapture",
+      "js": { "fn": "autocapture.start", "args": [] },
+      "native": { "fn": "startAutocapture", "args": ["default"] },
+      "note": "The point at which swizzling actually happens. An SDK may not do this merely because it was initialised."
+    },
+    {
+      "method": "stopAutocapture",
+      "js": { "fn": "autocapture.stop", "args": [] },
+      "native": { "fn": "stopAutocapture", "args": ["default"] }
+    },
+    {
+      "method": "isAutocaptureRunning",
+      "js": { "fn": "autocapture.isRunning", "args": [] },
+      "native": { "fn": "isAutocaptureRunning", "args": ["default"] }
+    },
+    {
       "method": "setPushToken",
       "js": { "fn": "setPushToken", "args": ["fcm-token-abc"] },
       "native": { "fn": "setPushToken", "args": ["default", "fcm-token-abc"] },
