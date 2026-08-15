@@ -23,8 +23,12 @@ set -euo pipefail
 PKG="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="${1:-$(mktemp -d)}"
 APP="HostApp"
-BUNDLE_ID="com.hostapp"
 DEVICE_NAME="intempt-e2e"
+# BUNDLE_ID is read from the BUILT app rather than assumed. It was hardcoded to
+# com.hostapp, and the React Native template actually produces
+# org.reactjs.native.example.HostApp — the build succeeded and the launch failed
+# with FBSOpenApplicationServiceErrorDomain code 4, which reads like a simulator
+# problem rather than a wrong identifier.
 
 if [ -d /Applications/Xcode.app ]; then
   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
@@ -120,10 +124,17 @@ npx react-native bundle --platform ios --dev false \
 echo "==> installing and launching"
 xcrun simctl install "$DEVICE_ID" "$APP_PATH"
 
+BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist")"
+[ -n "$BUNDLE_ID" ] || { echo "could not read CFBundleIdentifier from the built app" >&2; exit 1; }
+echo "    bundle id: $BUNDLE_ID"
+
 LOG="$WORK/e2e.log"
-xcrun simctl spawn "$DEVICE_ID" log stream --style compact \
+# Streaming starts before launch: the probe runs on mount and would otherwise
+# finish before the stream attached.
+xcrun simctl spawn "$DEVICE_ID" log stream --style compact --level debug \
   --predicate "processImagePath CONTAINS '$APP'" > "$LOG" 2>&1 &
 LOG_PID=$!
+sleep 3
 trap 'kill $LOG_PID 2>/dev/null || true; xcrun simctl shutdown "$DEVICE_ID" >/dev/null 2>&1 || true' EXIT
 
 xcrun simctl launch "$DEVICE_ID" "$BUNDLE_ID" \
