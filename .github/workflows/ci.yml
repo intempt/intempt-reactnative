@@ -151,6 +151,11 @@ jobs:
       - name: Publish the SDK to the runner's local Maven repo
         working-directory: intempt-android
         run: ./gradlew publishToMavenLocal -PVERSION=3.0.0-LOCAL -PSKIP_SIGNING=true --no-daemon
+      - name: Confirm the artifact actually landed in ~/.m2
+        run: |
+          # Distinguishes "publish failed" from "published but unresolvable".
+          # Without this, both look identical at the build step.
+          ls -la ~/.m2/repository/com/intempt/sdk/intempt-android/3.0.0-LOCAL/
       - name: Scaffold a bare React Native app
         run: |
           npx --yes @react-native-community/cli@latest init HostApp \
@@ -167,10 +172,14 @@ jobs:
           # com.facebook.react.settings owns dependency resolution, so editing
           # settings.gradle or adding allprojects{repositories} does nothing.
           # An init script is the one place that can inject a repository
-          # regardless of how the build configures resolution.
+          # regardless of how the build configures resolution — and it has to
+          # hook settingsEvaluated, not beforeSettings: the React Native
+          # settings plugin configures dependencyResolutionManagement itself,
+          # so anything added before it is applied gets replaced.
           cat > init.gradle <<'INIT'
-          beforeSettings { settings ->
+          settingsEvaluated { settings ->
             settings.dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
               repositories { mavenLocal() }
             }
           }
