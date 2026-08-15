@@ -23,11 +23,12 @@
   "scripts": {
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --project tsconfig.build.json",
+    "build": "npm run clean && tsc --project tsconfig.build.json && tsc --project tsconfig.build.cjs.json",
     "clean": "rm -rf lib",
     "mutation": "stryker run",
     "e2e:ios": "./scripts/run-e2e-ios.sh",
-    "check:workflows": "python3 scripts/check-workflows.py"
+    "check:workflows": "python3 scripts/check-workflows.py",
+    "check:pack": "node scripts/check-pack.mjs"
   },
   "keywords": [
     "intempt",

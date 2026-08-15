@@ -23,6 +23,24 @@ jobs:
       - name: Check every contract method has a fixture
         run: node scripts/check-corpus.mjs
 
+  # Everything else in this workflow reads the SOURCE tree, where every file it
+  # needs is present. Only `npm pack` sees what a consumer downloads. `main`
+  # pointed at lib/commonjs/index.js while the build produced only lib/module/,
+  # and nothing caught it — it would have surfaced as "module not found" in
+  # someone else's app after publishing.
+  pack:
+    name: Publishable artifact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/check-pack.mjs
+
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest

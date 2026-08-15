@@ -40,9 +40,22 @@ if [ ! -d "$APP" ]; then
 fi
 
 cd "$APP"
-echo "==> installing dependencies and linking the package from source"
+echo "==> installing dependencies"
 npm install
-npm install "$PKG"
+
+# Install from a PACKED TARBALL, not `npm install <path>`.
+#
+# A path install symlinks, and Metro does not resolve through symlinks without
+# watchFolders — which is how this failed the first time, with "Unable to
+# resolve module intempt-react-native" at the bundle step after pod install had
+# already succeeded.
+#
+# The tarball is also the more honest test: `npm pack` honours the `files`
+# allowlist, so this exercises exactly what a consumer downloads from npm. A
+# file missing from `files` fails here rather than in someone's app.
+echo "==> packing and installing the package as a consumer would get it"
+TARBALL="$(cd "$PKG" && npm pack --silent --pack-destination "$WORK")"
+npm install "$WORK/$TARBALL"
 
 echo "==> installing the probe app"
 cp "$PKG/e2e/App.e2e.tsx" App.tsx
