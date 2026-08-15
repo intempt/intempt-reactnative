@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Check every contract method has a fixture
         run: node scripts/check-corpus.mjs
 
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run typecheck
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm test -- --coverage
@@ -63,7 +63,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - name: Stryker
@@ -113,7 +113,7 @@ jobs:
           path: intempt-react-native
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Scaffold a bare React Native app
         run: |
           npx --yes @react-native-community/cli@latest init HostApp \
@@ -167,7 +167,7 @@ jobs:
           path: intempt-android
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -251,7 +251,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Run the probe app against api.intempt.com
         env:
           INTEMPT_API_KEY: ${{ secrets.INTEMPT_API_KEY }}

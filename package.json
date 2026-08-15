@@ -98,5 +98,6 @@
   },
   "engines": {
     "node": ">=18"
-  }
+  },
+  "devEngines": {}
 }

@@ -290,8 +290,13 @@ Adding a method to the TurboModule spec without a fixture fails the build.
 ```sh
 npm install
 npm run typecheck
-npm test
+npm test               # 131 tests
+npm run mutation       # Stryker; gate is 95, currently 99.03
+./scripts/typecheck-ios.sh   # Swift bridge against the real SDK
 ```
+
+**The package runs on Node 18+. The dev toolchain needs Node 22+** — Stryker
+refuses anything older, which is how CI failed while it passed locally on 23.
 
 Design and open questions: `docs/superpowers/specs/2026-08-15-intempt-reactnative-design.md`.
 
