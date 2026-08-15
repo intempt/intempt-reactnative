@@ -163,10 +163,19 @@ jobs:
       - name: Point the app at the locally-published SDK
         working-directory: HostApp/android
         run: |
-          # The RN template resolves dependencies through settings.gradle.
-          # mavenLocal is where the 3.0.0-LOCAL build landed.
-          sed -i "s|mavenCentral()|mavenCentral()\n      mavenLocal()|" settings.gradle
+          # The RN 0.81 template's settings.gradle has NO repositories block —
+          # com.facebook.react.settings owns dependency resolution, so editing
+          # settings.gradle or adding allprojects{repositories} does nothing.
+          # An init script is the one place that can inject a repository
+          # regardless of how the build configures resolution.
+          cat > init.gradle <<'INIT'
+          beforeSettings { settings ->
+            settings.dependencyResolutionManagement {
+              repositories { mavenLocal() }
+            }
+          }
+          INIT
           echo "intemptAndroidVersion=3.0.0-LOCAL" >> gradle.properties
       - name: Build
         working-directory: HostApp/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon --init-script init.gradle
