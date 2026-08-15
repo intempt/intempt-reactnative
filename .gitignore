@@ -1,0 +1,14 @@
+node_modules/
+lib/
+coverage/
+
+# Native build output
+android/build/
+android/.gradle/
+android/local.properties
+ios/build/
+ios/Pods/
+ios/*.xcworkspace
+
+.DS_Store
+*.log

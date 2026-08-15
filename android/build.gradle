@@ -1,0 +1,59 @@
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath 'com.android.tools.build:gradle:8.6.0'
+    classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21'
+  }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+// React Native's Gradle plugin generates the TurboModule spec and wires the
+// new-architecture source set. Without it, codegenConfig in package.json is
+// declared but never runs.
+apply plugin: 'com.facebook.react'
+
+android {
+  namespace 'com.intempt.reactnative'
+  compileSdk 35
+
+  defaultConfig {
+    // React Native 0.81's floor is 24. intempt-android 3.0 sets 23, so the
+    // SDK is not the binding constraint here — React Native is.
+    minSdk 24
+    targetSdk 35
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+
+  kotlinOptions {
+    jvmTarget = '17'
+  }
+
+  lintOptions {
+    abortOnError true
+  }
+}
+
+repositories {
+  google()
+  mavenCentral()
+}
+
+dependencies {
+  implementation 'com.facebook.react:react-android'
+
+  // PREREQUISITE. 2.0.1 is live on Maven Central but unusable: it declares
+  // minSdk 31, which is above React Native's floor, and ships
+  // kotlinx-serialization as `implementation`, so recommendation() does not
+  // compile for a consumer. 3.0.0 carries the contract conformance and drops
+  // minSdk to 23.
+  implementation 'com.intempt.sdk:intempt-android:3.0.0'
+}

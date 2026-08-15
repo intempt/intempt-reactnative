@@ -1,0 +1,46 @@
+Intempt React Native SDK
+Copyright 2026 Intempt Technologies, Inc.
+
+This product includes software developed at Mixpanel, Inc.
+(https://github.com/mixpanel/mixpanel-react-native), licensed under the Apache
+License, Version 2.0. Original copyright notice: Copyright 2022 Mixpanel, Inc.
+The full Apache License 2.0 text is in the LICENSE file.
+
+--------------------------------------------------------------------------
+What was inherited from mixpanel-react-native
+--------------------------------------------------------------------------
+
+The package structure and integration approach are adapted from
+mixpanel-react-native 3.6.0. Specifically:
+
+  Repository layout
+      The src/ + ios/ + android/ split, the podspec reading its version from
+      package.json, and the react-native.config.js autolinking declaration.
+
+  Bridging approach
+      One promise per native method, a single native module class per
+      platform, and a typed declaration file as the public contract.
+
+  Test structure
+      The jest layout under __tests__/, and the practice of asserting on the
+      arguments handed to the native module rather than on native behaviour.
+
+No Mixpanel source code is copied verbatim into this repository. Every file
+here is written against Intempt's own SDK API contract
+(intempt-swift/docs/SDK-API-CONTRACT.md).
+
+--------------------------------------------------------------------------
+What was deliberately NOT inherited
+--------------------------------------------------------------------------
+
+  JS-mode feature flags
+      mixpanel-react-native evaluates feature flags in JavaScript
+      (javascript/mixpanel-flags*.js, ~1,700 lines). Intempt has no
+      equivalent product surface.
+
+  JavaScript queue, network and persistence layers
+      Both Intempt native SDKs own queueing, retry and durable storage. A
+      second queue in JavaScript would be a worse one.
+
+  People / super-properties / group-profile APIs
+      Not part of Intempt's data model.
