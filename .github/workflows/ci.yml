@@ -115,27 +115,35 @@ jobs:
             -configuration Debug -destination 'generic/platform=iOS' \
             -quiet build CODE_SIGNING_ALLOWED=NO
 
-  # 505 lines of Kotlin that no compiler saw until 2026-08-15. Compiles the
-  # module against the real conforming SDK.
+  # 505 lines of Kotlin that no compiler saw until 2026-08-15.
+  #
+  # Builds it the way it is actually consumed — inside a bare React Native host
+  # app, so autolinking is exercised too. An earlier version of this job ran
+  # `./gradlew` inside android/ and failed with "No such file or directory":
+  # the module is a library built by the consuming app and ships no wrapper,
+  # which is correct. Building it standalone would have tested a shape no
+  # integrator ever uses.
   #
   # PINNED TO A LOCAL BUILD ON PURPOSE. intempt-android 3.0.0 is not on Maven
-  # Central yet — 2.0.1 is the latest published, and it is unusable (minSdk 31,
-  # kotlinx-serialization scoped as `implementation`). Publishing the SDK to the
-  # runner's ~/.m2 is what makes this job possible before 3.0 ships. Swap to the
-  # published coordinate once it exists, and delete this job's build step.
+  # Central — 2.0.1 is latest and is unusable (minSdk 31, kotlinx-serialization
+  # scoped as `implementation`). Publishing the SDK into the runner's ~/.m2 is
+  # what makes this job possible before 3.0 ships. Once it publishes: drop the
+  # publish step, drop mavenLocal, drop -PintemptAndroidVersion.
   android-build:
-    name: Android build (against intempt-android 3.0)
+    name: Android build (bare RN host app)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           path: intempt-react-native
-      - name: Check out intempt-android
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           repository: intempt/intempt-android
           ref: feature/inherit-mixpanel-substrate
           path: intempt-android
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -143,6 +151,22 @@ jobs:
       - name: Publish the SDK to the runner's local Maven repo
         working-directory: intempt-android
         run: ./gradlew publishToMavenLocal -PVERSION=3.0.0-LOCAL -PSKIP_SIGNING=true --no-daemon
-      - name: Compile the bridge module
-        working-directory: intempt-react-native/android
+      - name: Scaffold a bare React Native app
+        run: |
+          npx --yes @react-native-community/cli@latest init HostApp \
+            --version 0.81.0 --skip-install --install-pods false --pm npm
+      - name: Link the package from source
+        working-directory: HostApp
+        run: |
+          npm install
+          npm install ../intempt-react-native
+      - name: Point the app at the locally-published SDK
+        working-directory: HostApp/android
+        run: |
+          # The RN template resolves dependencies through settings.gradle.
+          # mavenLocal is where the 3.0.0-LOCAL build landed.
+          sed -i "s|mavenCentral()|mavenCentral()\n      mavenLocal()|" settings.gradle
+          echo "intemptAndroidVersion=3.0.0-LOCAL" >> gradle.properties
+      - name: Build
+        working-directory: HostApp/android
         run: ./gradlew assembleDebug --no-daemon

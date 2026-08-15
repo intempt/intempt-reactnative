@@ -55,5 +55,8 @@ dependencies {
   // kotlinx-serialization as `implementation`, so recommendation() does not
   // compile for a consumer. 3.0.0 carries the contract conformance and drops
   // minSdk to 23.
-  implementation 'com.intempt.sdk:intempt-android:3.0.0'
+  //
+  // Overridable so CI can build against a locally-published 3.0.0-LOCAL before
+  // 3.0.0 exists on Maven Central. Drop the override once it is published.
+  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '3.0.0'}"
 }
