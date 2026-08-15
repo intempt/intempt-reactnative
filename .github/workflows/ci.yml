@@ -191,8 +191,20 @@ jobs:
                 mavenCentral()
               }
             }
+            println "INTEMPT-DIAG settingsEvaluated build=" + settings.rootProject.name +
+                    " mode=" + settings.dependencyResolutionManagement.repositoriesMode.get() +
+                    " repos=" + settings.dependencyResolutionManagement.repositories*.name
           }
-          INIT
+          projectsLoaded { gradle ->
+            gradle.rootProject.allprojects { p ->
+              p.afterEvaluate {
+                if (p.name == "app" || p.name == "intempt-react-native") {
+                  println "INTEMPT-DIAG project=" + p.name + " repos=" + p.repositories*.name
+                }
+              }
+            }
+          }
+INIT
           echo "intemptAndroidVersion=3.0.0-LOCAL" >> gradle.properties
       - name: Build
         working-directory: HostApp/android
