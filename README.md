@@ -141,7 +141,7 @@ Three behaviours to know:
 await intempt.optOut();          // stops collection AND discards the queue
 await intempt.optIn();
 await intempt.hasOptedOut();
-await intempt.isUserOptIn();
+await intempt.isOptedIn();
 ```
 
 `optOut()` discards events already collected. Setting a flag alone would leave events

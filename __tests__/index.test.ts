@@ -163,15 +163,15 @@ describe('defaults', () => {
   });
 });
 
-describe('isUserOptIn', () => {
+describe('isOptedIn', () => {
   it('inverts hasOptedOut', async () => {
     const sdk = await init(VALID);
 
     nativeReturns.hasOptedOut = true;
-    expect(await sdk.isUserOptIn()).toBe(false);
+    expect(await sdk.isOptedIn()).toBe(false);
 
     nativeReturns.hasOptedOut = false;
-    expect(await sdk.isUserOptIn()).toBe(true);
+    expect(await sdk.isOptedIn()).toBe(true);
   });
 });
 

@@ -324,7 +324,7 @@ export class IntemptInstance {
   }
 
   /** Convenience inverse of `hasOptedOut()`. */
-  async isUserOptIn(): Promise<boolean> {
+  async isOptedIn(): Promise<boolean> {
     return !(await this.hasOptedOut());
   }
 
