@@ -51,3 +51,98 @@ jobs:
         with:
           name: coverage
           path: coverage/
+
+  # The Swift bridge is compiled by nothing until someone runs pod install in a
+  # host app. This resolves every Intempt symbol it uses against a real SDK
+  # build, which is where the one shipped bug in that file lived
+  # (Intempt.initialize, which is a static on IntemptInstance).
+  #
+  # It does NOT verify @objc export shape, the RCT_EXTERN_METHOD declarations,
+  # autolinking or codegen — see ios-build.
+  ios-typecheck:
+    name: iOS typecheck (against real Intempt)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out intempt-swift at the pinned tag
+        uses: actions/checkout@v4
+        with:
+          repository: intempt/intempt-swift
+          ref: v0.1.0
+          path: intempt-swift
+      - name: Typecheck the bridge
+        run: ./scripts/typecheck-ios.sh "$GITHUB_WORKSPACE/intempt-swift"
+
+  # The real integration check: a bare React Native app that consumes this
+  # package, resolves the podspec, autolinks it, runs codegen and compiles the
+  # Objective-C++ bridge. Everything ios-typecheck cannot see.
+  #
+  # Builds for a generic iOS destination — no simulator runtime needed, and
+  # compiling is where the value is. Running would additionally prove an event
+  # reaches Intempt, which the Swift SDK's own live contract tests already cover.
+  ios-build:
+    name: iOS build (bare RN host app)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: intempt-react-native
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Scaffold a bare React Native app
+        run: |
+          npx --yes @react-native-community/cli@latest init HostApp \
+            --version 0.81.0 --skip-install --install-pods false
+      - name: Link the package from source
+        working-directory: HostApp
+        run: |
+          npm install
+          npm install ../intempt-react-native
+      - name: Add the Intempt pod from git
+        working-directory: HostApp/ios
+        run: |
+          # Not on CocoaPods trunk yet; the repository is public so a tagged
+          # git reference resolves without credentials. Remove this once
+          # `pod trunk push` has run — see issue #2.
+          printf "\npod 'Intempt', :git => 'https://github.com/intempt/intempt-swift.git', :tag => 'v0.1.0'\n" \
+            >> Podfile
+          pod install
+      - name: Compile
+        working-directory: HostApp/ios
+        run: |
+          xcodebuild -workspace HostApp.xcworkspace -scheme HostApp \
+            -configuration Debug -destination 'generic/platform=iOS' \
+            -quiet build CODE_SIGNING_ALLOWED=NO
+
+  # 505 lines of Kotlin that no compiler saw until 2026-08-15. Compiles the
+  # module against the real conforming SDK.
+  #
+  # PINNED TO A LOCAL BUILD ON PURPOSE. intempt-android 3.0.0 is not on Maven
+  # Central yet — 2.0.1 is the latest published, and it is unusable (minSdk 31,
+  # kotlinx-serialization scoped as `implementation`). Publishing the SDK to the
+  # runner's ~/.m2 is what makes this job possible before 3.0 ships. Swap to the
+  # published coordinate once it exists, and delete this job's build step.
+  android-build:
+    name: Android build (against intempt-android 3.0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: intempt-react-native
+      - name: Check out intempt-android
+        uses: actions/checkout@v4
+        with:
+          repository: intempt/intempt-android
+          ref: feature/inherit-mixpanel-substrate
+          path: intempt-android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Publish the SDK to the runner's local Maven repo
+        working-directory: intempt-android
+        run: ./gradlew publishToMavenLocal -PVERSION=3.0.0-LOCAL -PSKIP_SIGNING=true --no-daemon
+      - name: Compile the bridge module
+        working-directory: intempt-react-native/android
+        run: ./gradlew assembleDebug --no-daemon

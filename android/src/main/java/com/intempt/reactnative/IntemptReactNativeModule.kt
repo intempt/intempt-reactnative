@@ -91,7 +91,7 @@ class IntemptReactNativeModule(
 
         guarded(promise, "init") {
             val ok = Intempt.initialize(reactContext)
-            if (ok && Intempt.isInitialized()) {
+            if (ok && Intempt.isInitialized) {
                 promise.resolve(null)
             } else {
                 promise.reject(
