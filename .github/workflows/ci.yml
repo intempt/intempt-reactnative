@@ -204,7 +204,7 @@ jobs:
               }
             }
           }
-INIT
+          INIT
           echo "intemptAndroidVersion=3.0.0-LOCAL" >> gradle.properties
       - name: Build
         working-directory: HostApp/android
