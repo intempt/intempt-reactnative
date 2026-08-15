@@ -42,10 +42,16 @@ android {
   }
 }
 
-repositories {
-  google()
-  mavenCentral()
-}
+// NO `repositories` block here, deliberately.
+//
+// React Native's settings plugin resolves with RepositoriesMode.PREFER_PROJECT,
+// so a repository set declared by this module OVERRIDES the consuming app's.
+// That is not a preference — it silently breaks any app whose repositories
+// differ from google() + mavenCentral(): an internal mirror, a proxy behind a
+// firewall, or mavenLocal for a pre-release SDK. Diagnosed exactly that way in
+// CI, where the app registered mavenLocal and this module's block hid it.
+//
+// A library module does not own dependency resolution. The app does.
 
 dependencies {
   implementation 'com.facebook.react:react-android'
