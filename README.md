@@ -14,7 +14,7 @@ on iOS and [intempt-android](https://github.com/intempt/intempt-android) on Andr
 | JavaScript / TypeScript layer | complete |
 | TurboModule spec + codegen config | complete |
 | Contract fixture corpus | complete, 32 fixtures over 29 methods |
-| iOS native module | complete, builds against `Intempt` 0.1.0 |
+| iOS native module | complete, **typechecked** against `Intempt` 0.1.0 |
 | Android native module | complete, 16 methods reject until `intempt-android` 3.0 |
 | iOS distribution | podspec and tag `v0.1.0` shipped; **not on CocoaPods trunk yet** |
 | Android distribution | on Maven Central; needs 3.0 for full conformance |
@@ -273,8 +273,15 @@ Conformance is enforced by a fixture corpus, not by review:
 
 ```sh
 node scripts/check-corpus.mjs   # no dependencies; runs before npm install
-npm test                        # the same invariant, plus behaviour
+npm run typecheck               # tsc
+npm test                        # 57 tests
+./scripts/typecheck-ios.sh      # the Swift bridge against the real SDK
 ```
+
+`typecheck-ios.sh` resolves every Intempt symbol the bridge uses against an actual
+`intempt-swift` build. It does **not** verify React Native itself — the promise blocks are
+stubbed, so `@objc` export shape, the `RCT_EXTERN_METHOD` declarations, autolinking and
+codegen still need a real `pod install` and an Xcode build.
 
 Adding a method to the TurboModule spec without a fixture fails the build.
 
