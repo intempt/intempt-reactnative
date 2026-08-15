@@ -322,19 +322,6 @@ class IntemptReactNativeModule(
     fun setFlushInterval(instanceName: String, seconds: Double, promise: Promise) =
         unsupported(promise, "setFlushInterval", "flushInterval on the instance")
 
-    @ReactMethod
-    fun experiments(
-        instanceName: String,
-        names: ReadableArray?,
-        groups: ReadableArray?,
-        optimizationType: String?,
-        productId: String?,
-        promise: Promise,
-    ) = unsupported(
-        promise,
-        "experiments",
-        "experiments(names, groups, optimizationType, productId) — absent from app.api entirely",
-    )
 
     @ReactMethod
     fun products(

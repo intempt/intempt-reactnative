@@ -416,46 +416,6 @@ public class IntemptReactNative: NSObject {
 
     // MARK: - Personalization
 
-    @objc
-    func experiments(
-        _ instanceName: String,
-        names: [String]?,
-        groups: [String]?,
-        optimizationType: String?,
-        productId: String?,
-        resolver resolve: @escaping RCTPromiseResolveBlock,
-        rejecter reject: @escaping RCTPromiseRejectBlock
-    ) {
-        // An unrecognised discriminator is rejected rather than coerced to nil.
-        // Silently widening "expriment" into "everything" returns plausible
-        // results for a typo.
-        var parsedType: OptimizationType?
-        if let optimizationType {
-            guard let value = OptimizationType(rawValue: optimizationType) else {
-                reject(
-                    "invalid_property_value",
-                    "optimizationType must be one of: "
-                        + OptimizationType.allCases.map(\.rawValue).joined(separator: ", "),
-                    nil)
-                return
-            }
-            parsedType = value
-        }
-
-        withInstance(instanceName, "experiments", reject) { instance in
-            instance.experiments(
-                names: names, groups: groups, optimizationType: parsedType,
-                productId: productId
-            ) { result in
-                switch result {
-                case .success(let choices):
-                    resolve(choices.map(TypeBridge.dictionary(from:)))
-                case .failure(let error):
-                    self.rejectIntempt(reject, error)
-                }
-            }
-        }
-    }
 
     @objc
     func products(

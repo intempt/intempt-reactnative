@@ -4,7 +4,7 @@
     "",
     "Each entry names a contract method, the JavaScript call that invokes it,",
     "and the exact positional arguments the native module must receive. Every",
-    "contract method MUST appear here — a missing entry fails the corpus test,",
+    "contract method MUST appear here \u2014 a missing entry fails the corpus test,",
     "so adding a method to the contract without a fixture is a red build.",
     "",
     "SCOPE: this file asserts the BRIDGE contract, not the wire contract. What",
@@ -18,242 +18,619 @@
   "methods": [
     {
       "method": "track",
-      "js": { "fn": "track", "args": ["Signed up", { "plan": "pro", "seats": 3, "trial": false }] },
+      "js": {
+        "fn": "track",
+        "args": [
+          "Signed up",
+          {
+            "plan": "pro",
+            "seats": 3,
+            "trial": false
+          }
+        ]
+      },
       "native": {
         "fn": "track",
-        "args": ["default", "Signed up", { "plan": "pro", "seats": 3, "trial": false }]
+        "args": [
+          "default",
+          "Signed up",
+          {
+            "plan": "pro",
+            "seats": 3,
+            "trial": false
+          }
+        ]
       },
       "note": "seats and trial must arrive as number and boolean, not strings. Android's pre-3.0 Map<String,String> surface stringified both."
     },
     {
       "method": "track",
-      "js": { "fn": "track", "args": ["Opened app"] },
-      "native": { "fn": "track", "args": ["default", "Opened app", null] },
+      "js": {
+        "fn": "track",
+        "args": [
+          "Opened app"
+        ]
+      },
+      "native": {
+        "fn": "track",
+        "args": [
+          "default",
+          "Opened app",
+          null
+        ]
+      },
       "note": "Omitted data is null, not an empty object."
     },
     {
       "method": "track",
-      "js": { "fn": "track", "args": ["Renewed", { "at": { "$date": "2026-08-15T10:30:00.000Z" } }] },
-      "native": { "fn": "track", "args": ["default", "Renewed", { "at": "2026-08-15T10:30:00.000Z" }] },
+      "js": {
+        "fn": "track",
+        "args": [
+          "Renewed",
+          {
+            "at": {
+              "$date": "2026-08-15T10:30:00.000Z"
+            }
+          }
+        ]
+      },
+      "native": {
+        "fn": "track",
+        "args": [
+          "default",
+          "Renewed",
+          {
+            "at": "2026-08-15T10:30:00.000Z"
+          }
+        ]
+      },
       "note": "Date has no bridge representation. It crosses as ISO 8601 and native re-types it."
     },
     {
       "method": "track",
-      "js": { "fn": "track", "args": ["Cleared", { "keep": null, "drop": { "$undefined": true } }] },
-      "native": { "fn": "track", "args": ["default", "Cleared", { "keep": null }] },
-      "note": "An explicit null clears an attribute and is forwarded. An undefined is an absent key and is dropped — forwarding it as null would clear something the caller never mentioned."
+      "js": {
+        "fn": "track",
+        "args": [
+          "Cleared",
+          {
+            "keep": null,
+            "drop": {
+              "$undefined": true
+            }
+          }
+        ]
+      },
+      "native": {
+        "fn": "track",
+        "args": [
+          "default",
+          "Cleared",
+          {
+            "keep": null
+          }
+        ]
+      },
+      "note": "An explicit null clears an attribute and is forwarded. An undefined is an absent key and is dropped \u2014 forwarding it as null would clear something the caller never mentioned."
     },
     {
       "method": "identify",
-      "js": { "fn": "identify", "args": ["user-1", { "userAttributes": { "email": "a@b.com" } }] },
+      "js": {
+        "fn": "identify",
+        "args": [
+          "user-1",
+          {
+            "userAttributes": {
+              "email": "a@b.com"
+            }
+          }
+        ]
+      },
       "native": {
         "fn": "identify",
-        "args": ["default", "user-1", "Identify", { "email": "a@b.com" }, null]
+        "args": [
+          "default",
+          "user-1",
+          "Identify",
+          {
+            "email": "a@b.com"
+          },
+          null
+        ]
       },
       "note": "eventTitle defaults to \"Identify\"."
     },
     {
       "method": "group",
-      "js": { "fn": "group", "args": ["acct-1", { "accountAttributes": { "tier": "enterprise" } }] },
+      "js": {
+        "fn": "group",
+        "args": [
+          "acct-1",
+          {
+            "accountAttributes": {
+              "tier": "enterprise"
+            }
+          }
+        ]
+      },
       "native": {
         "fn": "group",
-        "args": ["default", "acct-1", "Identify", { "tier": "enterprise" }]
+        "args": [
+          "default",
+          "acct-1",
+          "Identify",
+          {
+            "tier": "enterprise"
+          }
+        ]
       },
       "note": "accountAttributes, not userAttributes. The deprecated Obj-C SDK named this parameter userAttributes while sending an account."
     },
     {
       "method": "alias",
-      "js": { "fn": "alias", "args": ["user-1", "anon-9"] },
-      "native": { "fn": "alias", "args": ["default", "user-1", "anon-9"] }
+      "js": {
+        "fn": "alias",
+        "args": [
+          "user-1",
+          "anon-9"
+        ]
+      },
+      "native": {
+        "fn": "alias",
+        "args": [
+          "default",
+          "user-1",
+          "anon-9"
+        ]
+      }
     },
     {
       "method": "record",
       "js": {
         "fn": "record",
-        "args": ["Renewed", { "userId": "user-1", "accountId": "acct-1", "data": { "mrr": 120 } }]
+        "args": [
+          "Renewed",
+          {
+            "userId": "user-1",
+            "accountId": "acct-1",
+            "data": {
+              "mrr": 120
+            }
+          }
+        ]
       },
       "native": {
         "fn": "record",
-        "args": ["default", "Renewed", "user-1", "acct-1", { "mrr": 120 }, null, null]
+        "args": [
+          "default",
+          "Renewed",
+          "user-1",
+          "acct-1",
+          {
+            "mrr": 120
+          },
+          null,
+          null
+        ]
       },
       "note": "FROZEN ORDER: userId before accountId, then data, userAttributes, accountAttributes. Android ordered these the other way before 3.0. This fixture is the regression test for that."
     },
     {
       "method": "productAdd",
-      "js": { "fn": "productAdd", "args": ["sku-1", 2] },
-      "native": { "fn": "productAdd", "args": ["default", "sku-1", 2] }
+      "js": {
+        "fn": "productAdd",
+        "args": [
+          "sku-1",
+          2
+        ]
+      },
+      "native": {
+        "fn": "productAdd",
+        "args": [
+          "default",
+          "sku-1",
+          2
+        ]
+      }
     },
     {
       "method": "productView",
-      "js": { "fn": "productView", "args": ["sku-1"] },
-      "native": { "fn": "productView", "args": ["default", "sku-1"] }
+      "js": {
+        "fn": "productView",
+        "args": [
+          "sku-1"
+        ]
+      },
+      "native": {
+        "fn": "productView",
+        "args": [
+          "default",
+          "sku-1"
+        ]
+      }
     },
     {
       "method": "productOrdered",
       "js": {
         "fn": "productOrdered",
-        "args": [[{ "productId": "sku-1", "quantity": 2 }, { "productId": "sku-2", "quantity": 1 }]]
+        "args": [
+          [
+            {
+              "productId": "sku-1",
+              "quantity": 2
+            },
+            {
+              "productId": "sku-2",
+              "quantity": 1
+            }
+          ]
+        ]
       },
       "native": {
         "fn": "productOrdered",
         "args": [
           "default",
-          [{ "productId": "sku-1", "quantity": 2 }, { "productId": "sku-2", "quantity": 1 }]
+          [
+            {
+              "productId": "sku-1",
+              "quantity": 2
+            },
+            {
+              "productId": "sku-2",
+              "quantity": 1
+            }
+          ]
         ]
       },
       "note": "Typed pairs. Android's List<Map<String,Any>> admits a map with neither key and fails at runtime."
     },
     {
       "method": "consent",
-      "js": { "fn": "consent", "args": ["accept", 1798761600, { "email": "a@b.com" }] },
+      "js": {
+        "fn": "consent",
+        "args": [
+          "accept",
+          1798761600,
+          {
+            "email": "a@b.com"
+          }
+        ]
+      },
       "native": {
         "fn": "consent",
-        "args": ["default", "accept", 1798761600, "a@b.com", null, null]
+        "args": [
+          "default",
+          "accept",
+          1798761600,
+          "a@b.com",
+          null,
+          null
+        ]
       },
       "note": "action is an enum value, not a free string. reject additionally opts out; accept opts in. Consent transmits even when opted out."
     },
     {
       "method": "getProfileId",
-      "js": { "fn": "getProfileId", "args": [] },
-      "native": { "fn": "getProfileId", "args": ["default"] }
+      "js": {
+        "fn": "getProfileId",
+        "args": []
+      },
+      "native": {
+        "fn": "getProfileId",
+        "args": [
+          "default"
+        ]
+      }
     },
     {
       "method": "getSessionId",
-      "js": { "fn": "getSessionId", "args": [] },
-      "native": { "fn": "getSessionId", "args": ["default"] }
+      "js": {
+        "fn": "getSessionId",
+        "args": []
+      },
+      "native": {
+        "fn": "getSessionId",
+        "args": [
+          "default"
+        ]
+      }
     },
     {
       "method": "logOut",
-      "js": { "fn": "logOut", "args": [] },
-      "native": { "fn": "logOut", "args": ["default"] },
+      "js": {
+        "fn": "logOut",
+        "args": []
+      },
+      "native": {
+        "fn": "logOut",
+        "args": [
+          "default"
+        ]
+      },
       "note": "Rotates identity, keeps the queue. Distinct from reset."
     },
     {
       "method": "reset",
-      "js": { "fn": "reset", "args": [] },
-      "native": { "fn": "reset", "args": ["default"] },
+      "js": {
+        "fn": "reset",
+        "args": []
+      },
+      "native": {
+        "fn": "reset",
+        "args": [
+          "default"
+        ]
+      },
       "note": "New identity AND empty queue."
     },
     {
       "method": "optIn",
-      "js": { "fn": "optIn", "args": [] },
-      "native": { "fn": "optIn", "args": ["default"] }
+      "js": {
+        "fn": "optIn",
+        "args": []
+      },
+      "native": {
+        "fn": "optIn",
+        "args": [
+          "default"
+        ]
+      }
     },
     {
       "method": "optOut",
-      "js": { "fn": "optOut", "args": [] },
-      "native": { "fn": "optOut", "args": ["default"] },
+      "js": {
+        "fn": "optOut",
+        "args": []
+      },
+      "native": {
+        "fn": "optOut",
+        "args": [
+          "default"
+        ]
+      },
       "note": "Must discard queued events, not just set a flag. Queued consent records are preserved."
     },
     {
       "method": "hasOptedOut",
-      "js": { "fn": "hasOptedOut", "args": [] },
-      "native": { "fn": "hasOptedOut", "args": ["default"] }
+      "js": {
+        "fn": "hasOptedOut",
+        "args": []
+      },
+      "native": {
+        "fn": "hasOptedOut",
+        "args": [
+          "default"
+        ]
+      }
     },
     {
       "method": "flush",
-      "js": { "fn": "flush", "args": [] },
-      "native": { "fn": "flush", "args": ["default"] },
+      "js": {
+        "fn": "flush",
+        "args": []
+      },
+      "native": {
+        "fn": "flush",
+        "args": [
+          "default"
+        ]
+      },
       "note": "Resolves to the number of events delivered."
     },
     {
       "method": "getFlushInterval",
-      "js": { "fn": "getFlushInterval", "args": [] },
-      "native": { "fn": "getFlushInterval", "args": ["default"] }
+      "js": {
+        "fn": "getFlushInterval",
+        "args": []
+      },
+      "native": {
+        "fn": "getFlushInterval",
+        "args": [
+          "default"
+        ]
+      }
     },
     {
       "method": "setFlushInterval",
-      "js": { "fn": "setFlushInterval", "args": [30] },
-      "native": { "fn": "setFlushInterval", "args": ["default", 30] },
+      "js": {
+        "fn": "setFlushInterval",
+        "args": [
+          30
+        ]
+      },
+      "native": {
+        "fn": "setFlushInterval",
+        "args": [
+          "default",
+          30
+        ]
+      },
       "note": "0 disables the timer."
     },
     {
-      "method": "experiments",
-      "js": { "fn": "experiments", "args": [{ "names": ["hero-test"], "optimizationType": "experiment" }] },
-      "native": {
-        "fn": "experiments",
-        "args": ["default", ["hero-test"], null, "experiment", null]
-      },
-      "note": "One method with a discriminator, replacing two identical ModificationProvider objects."
-    },
-    {
-      "method": "experiments",
-      "js": { "fn": "experiments", "args": [] },
-      "native": { "fn": "experiments", "args": ["default", null, null, null, null] },
-      "note": "No arguments asks for everything that matches, which is what the JS SDK does."
-    },
-    {
       "method": "products",
-      "js": { "fn": "products", "args": [{ "feedId": "feed-1" }] },
+      "js": {
+        "fn": "products",
+        "args": [
+          {
+            "feedId": "feed-1"
+          }
+        ]
+      },
       "native": {
         "fn": "products",
         "args": [
           "default",
           "feed-1",
           10,
-          ["productId", "title", "price", "imageUrl", "url"],
+          [
+            "productId",
+            "title",
+            "price",
+            "imageUrl",
+            "url"
+          ],
           null
         ]
       },
-      "note": "fields MUST default to the compact set. An unfielded request returns raw ML embedding vectors — 443x the payload for the same 10 products, 503 bytes against 222,919. A platform defaulting this to all fields is non-conformant."
+      "note": "fields MUST default to the compact set. An unfielded request returns raw ML embedding vectors \u2014 443x the payload for the same 10 products, 503 bytes against 222,919. A platform defaulting this to all fields is non-conformant."
     },
     {
       "method": "getAutomaticEvents",
-      "js": { "fn": "getAutomaticEvents", "args": [] },
-      "native": { "fn": "getAutomaticEvents", "args": ["default"] }
+      "js": {
+        "fn": "getAutomaticEvents",
+        "args": []
+      },
+      "native": {
+        "fn": "getAutomaticEvents",
+        "args": [
+          "default"
+        ]
+      }
     },
     {
       "method": "setAutomaticEvents",
       "js": {
         "fn": "setAutomaticEvents",
-        "args": [{ "sessions": true, "versionChanges": false, "appStateChanges": false }]
+        "args": [
+          {
+            "sessions": true,
+            "versionChanges": false,
+            "appStateChanges": false
+          }
+        ]
       },
       "native": {
         "fn": "setAutomaticEvents",
-        "args": ["default", { "sessions": true, "versionChanges": false, "appStateChanges": false }]
+        "args": [
+          "default",
+          {
+            "sessions": true,
+            "versionChanges": false,
+            "appStateChanges": false
+          }
+        ]
       },
       "note": "Runtime-settable, not config-file-only. Only sessions default on."
     },
     {
       "method": "configureAutocapture",
-      "js": { "fn": "autocapture.configure", "args": [{ "screenViews": true, "controlInteractions": false }] },
+      "js": {
+        "fn": "autocapture.configure",
+        "args": [
+          {
+            "screenViews": true,
+            "controlInteractions": false
+          }
+        ]
+      },
       "native": {
         "fn": "configureAutocapture",
-        "args": ["default", { "screenViews": true, "controlInteractions": false }]
+        "args": [
+          "default",
+          {
+            "screenViews": true,
+            "controlInteractions": false
+          }
+        ]
       },
-      "note": "Distinct from setAutomaticEvents. configure() only sets options — nothing is installed until start(), because on iOS this swizzles UIKit."
+      "note": "Distinct from setAutomaticEvents. configure() only sets options \u2014 nothing is installed until start(), because on iOS this swizzles UIKit."
     },
     {
       "method": "startAutocapture",
-      "js": { "fn": "autocapture.start", "args": [] },
-      "native": { "fn": "startAutocapture", "args": ["default"] },
+      "js": {
+        "fn": "autocapture.start",
+        "args": []
+      },
+      "native": {
+        "fn": "startAutocapture",
+        "args": [
+          "default"
+        ]
+      },
       "note": "The point at which swizzling actually happens. An SDK may not do this merely because it was initialised."
     },
     {
       "method": "stopAutocapture",
-      "js": { "fn": "autocapture.stop", "args": [] },
-      "native": { "fn": "stopAutocapture", "args": ["default"] }
+      "js": {
+        "fn": "autocapture.stop",
+        "args": []
+      },
+      "native": {
+        "fn": "stopAutocapture",
+        "args": [
+          "default"
+        ]
+      }
     },
     {
       "method": "isAutocaptureRunning",
-      "js": { "fn": "autocapture.isRunning", "args": [] },
-      "native": { "fn": "isAutocaptureRunning", "args": ["default"] }
+      "js": {
+        "fn": "autocapture.isRunning",
+        "args": []
+      },
+      "native": {
+        "fn": "isAutocaptureRunning",
+        "args": [
+          "default"
+        ]
+      }
     },
     {
       "method": "setPushToken",
-      "js": { "fn": "setPushToken", "args": ["fcm-token-abc"] },
-      "native": { "fn": "setPushToken", "args": ["default", "fcm-token-abc"] },
-      "note": "Android registration needs Google Play Services. A default emulator image has none — use google_apis."
+      "js": {
+        "fn": "setPushToken",
+        "args": [
+          "fcm-token-abc"
+        ]
+      },
+      "native": {
+        "fn": "setPushToken",
+        "args": [
+          "default",
+          "fcm-token-abc"
+        ]
+      },
+      "note": "Android registration needs Google Play Services. A default emulator image has none \u2014 use google_apis."
     },
     {
       "method": "trackPushOpen",
-      "js": { "fn": "trackPushOpen", "args": [{ "campaignId": "c-1" }] },
-      "native": { "fn": "trackPushOpen", "args": ["default", { "campaignId": "c-1" }] }
+      "js": {
+        "fn": "trackPushOpen",
+        "args": [
+          {
+            "campaignId": "c-1"
+          }
+        ]
+      },
+      "native": {
+        "fn": "trackPushOpen",
+        "args": [
+          "default",
+          {
+            "campaignId": "c-1"
+          }
+        ]
+      }
     },
     {
       "method": "trackPushReceived",
-      "js": { "fn": "trackPushReceived", "args": [{ "campaignId": "c-1" }] },
-      "native": { "fn": "trackPushReceived", "args": ["default", { "campaignId": "c-1" }] }
+      "js": {
+        "fn": "trackPushReceived",
+        "args": [
+          {
+            "campaignId": "c-1"
+          }
+        ]
+      },
+      "native": {
+        "fn": "trackPushReceived",
+        "args": [
+          "default",
+          {
+            "campaignId": "c-1"
+          }
+        ]
+      }
     }
   ],
   "excludedFromBridge": {

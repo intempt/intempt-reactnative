@@ -50,35 +50,10 @@ export enum ConsentAction {
   Reject = 'reject',
 }
 
-/** Which side of the optimization API a request is asking about. */
-export enum OptimizationType {
-  Experiment = 'experiment',
-  Personalization = 'personalization',
-}
-
 /** One product in a `productOrdered` call. */
 export interface OrderedProduct {
   productId: string;
   quantity: number;
-}
-
-/** An experiment or personalization assignment. */
-export interface ExperimentChoice {
-  /** Experience id the assignment belongs to. */
-  experience: string;
-  /** Assigned variant id. This is what a caller branches on. */
-  variant: string;
-  /** Server-side target the experience was configured against. */
-  target?: string;
-  /**
-   * The experiment or experience name, when the server returns one.
-   *
-   * Present when the request asked for specific `names`. A `choose-web`
-   * response carries ids only, so this is absent there.
-   */
-  name?: string;
-  /** Variant payload the server attached, when present. Untyped by design. */
-  payload?: unknown;
 }
 
 /**
@@ -94,17 +69,6 @@ export interface ProductRecommendation {
   imageUrl?: string;
   url?: string;
   price?: number;
-}
-
-/** Arguments to `experiments()`. All optional. */
-export interface ExperimentsQuery {
-  /** Specific experiment or experience names to evaluate. */
-  names?: string[];
-  /** Experiment groups — the `byGroups` variant of the same idea. */
-  groups?: string[];
-  optimizationType?: OptimizationType;
-  /** Required by feeds whose input is PRODUCT. */
-  productId?: string;
 }
 
 /** Arguments to `products()`. */

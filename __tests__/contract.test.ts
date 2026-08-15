@@ -14,7 +14,7 @@ import {
   IntemptInstance,
   __resetInstanceRegistryForTests,
 } from '../src/index';
-import type { Spec } from '../src/NativeIntempt';
+import NativeIntempt from '../src/NativeIntempt';
 
 /**
  * Rehydrates the JSON encodings the corpus uses for values JSON cannot hold.
@@ -106,8 +106,7 @@ describe('corpus completeness', () => {
     const excluded = new Set(Object.keys(corpus.excludedFromBridge));
 
     // The spec's own key list, taken from the recorder the setup installs.
-    const nativeModule = (await import('../src/NativeIntempt')).default as Spec;
-    const specMethods = Object.keys(nativeModule).filter(
+    const specMethods = Object.keys(NativeIntempt).filter(
       (name) => !NON_INSTANCE_METHODS.has(name) && !excluded.has(name)
     );
 

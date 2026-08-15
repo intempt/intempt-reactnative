@@ -15,13 +15,10 @@ import { IntemptError, IntemptErrorCode, fromNativeRejection } from './errors';
 import {
   ConsentAction,
   DEFAULT_FEED_FIELDS,
-  OptimizationType,
 } from './types';
 import type {
   AutocaptureOptions,
   AutomaticEventOptions,
-  ExperimentChoice,
-  ExperimentsQuery,
   IntemptConfig,
   IntemptProperties,
   IntemptValue,
@@ -32,7 +29,6 @@ import type {
 
 export {
   ConsentAction,
-  OptimizationType,
   DEFAULT_FEED_FIELDS,
   IntemptError,
   IntemptErrorCode,
@@ -40,8 +36,6 @@ export {
 export type {
   AutocaptureOptions,
   AutomaticEventOptions,
-  ExperimentChoice,
-  ExperimentsQuery,
   IntemptConfig,
   IntemptProperties,
   IntemptValue,
@@ -353,18 +347,6 @@ export class IntemptInstance {
 
   // MARK: - Personalization
 
-  /** Evaluates experiments or personalizations for the current profile. */
-  experiments(query: ExperimentsQuery = {}): Promise<ExperimentChoice[]> {
-    return this.call('experiments', () =>
-      NativeIntempt.experiments(
-        this.instanceName,
-        query.names ?? null,
-        query.groups ?? null,
-        query.optimizationType ?? null,
-        query.productId ?? null
-      )
-    ) as Promise<ExperimentChoice[]>;
-  }
 
   /**
    * Recommended products from a configured feed.

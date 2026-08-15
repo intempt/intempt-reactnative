@@ -13,9 +13,9 @@ on iOS and [intempt-android](https://github.com/intempt/intempt-android) on Andr
 |---|---|
 | JavaScript / TypeScript layer | complete |
 | TurboModule spec + codegen config | complete |
-| Contract fixture corpus | complete, 30 fixtures over 26 methods |
+| Contract fixture corpus | complete, 32 fixtures over 29 methods |
 | iOS native module | complete, builds against `Intempt` 0.1.0 |
-| Android native module | complete, 13 methods reject until `intempt-android` 3.0 |
+| Android native module | complete, 16 methods reject until `intempt-android` 3.0 |
 | iOS distribution | podspec and tag `v0.1.0` shipped; **not on CocoaPods trunk yet** |
 | Android distribution | on Maven Central; needs 3.0 for full conformance |
 
@@ -148,18 +148,14 @@ await intempt.isOptedIn();
 gathered before the objection to be uploaded after it. Queued **consent** records are
 preserved — they are the evidence of the decision.
 
-### Personalization
+### Recommendations
 
 ```ts
-import { OptimizationType } from 'intempt-react-native';
-
-const choices = await intempt.experiments({
-  names: ['hero-test'],
-  optimizationType: OptimizationType.Experiment,
-});
-
 const products = await intempt.products({ feedId: 'feed-1', count: 10 });
 ```
+
+Experiment and personalization assignment is **not** in the mobile SDKs — it is an
+intemptjs capability. Recommendation feeds are a different thing and are here.
 
 `products()` defaults `fields` to `productId`, `title`, `price`, `imageUrl`, `url`.
 

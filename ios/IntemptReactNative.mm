@@ -168,15 +168,6 @@ RCT_EXTERN_METHOD(setFlushInterval
 
 // MARK: - Personalization
 
-RCT_EXTERN_METHOD(experiments
-                  : (NSString *)instanceName names
-                  : (nullable NSArray *)names groups
-                  : (nullable NSArray *)groups optimizationType
-                  : (nullable NSString *)optimizationType productId
-                  : (nullable NSString *)productId resolver
-                  : (RCTPromiseResolveBlock)resolve rejecter
-                  : (RCTPromiseRejectBlock)reject)
-
 RCT_EXTERN_METHOD(products
                   : (NSString *)instanceName feedId
                   : (NSString *)feedId count

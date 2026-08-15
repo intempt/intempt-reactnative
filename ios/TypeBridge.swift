@@ -51,16 +51,6 @@ enum TypeBridge {
         }
     }
 
-    static func dictionary(from choice: ExperimentChoice) -> [String: Any] {
-        var output: [String: Any] = [
-            "experience": choice.experience,
-            "variant": choice.variant,
-        ]
-        if let target = choice.target { output["target"] = target }
-        if let name = choice.name { output["name"] = name }
-        if let payload = choice.payload { output["payload"] = payload }
-        return output
-    }
 
     static func dictionary(from product: ProductRecommendation) -> [String: Any] {
         var output: [String: Any] = ["attributes": product.attributes]

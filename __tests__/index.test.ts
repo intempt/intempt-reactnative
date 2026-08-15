@@ -16,6 +16,24 @@ import {
   __resetInstanceRegistryForTests,
 } from '../src/index';
 
+
+/**
+ * Awaits a rejection and returns it typed.
+ *
+ * Deliberately fails when the promise resolves. The `.catch(e => e)` form types
+ * as `T | IntemptError` and, if the call ever stopped rejecting, would compare
+ * assertions against the resolved value rather than reporting that the
+ * rejection vanished — a test that silently stops testing what it names.
+ */
+async function rejection(promise: Promise<unknown>): Promise<IntemptError> {
+  try {
+    await promise;
+  } catch (error) {
+    return error as IntemptError;
+  }
+  throw new Error('expected the call to reject, but it resolved');
+}
+
 const VALID = {
   apiKey: 'prefix.secret',
   orgId: 'org-1',
@@ -42,7 +60,7 @@ describe('init', () => {
     ['orgId', { ...VALID, orgId: '   ' }],
     ['projectId', { ...VALID, projectId: '' }],
     ['sourceId', { ...VALID, sourceId: ' ' }],
-  ])('rejects a blank %s before touching native', async (field, config) => {
+  ])('rejects a blank %s before touching native', async (_field, config) => {
     await expect(init(config)).rejects.toThrow(IntemptError);
     await expect(init(config)).rejects.toMatchObject({
       code: IntemptErrorCode.MissingConfiguration,
@@ -195,7 +213,7 @@ describe('error mapping', () => {
       userInfo: { status: 503, retryAfter: 30 },
     };
 
-    const error = await sdk.track('e').catch((e: unknown) => e as IntemptError);
+    const error = await rejection(sdk.track('e'));
 
     expect(error).toBeInstanceOf(IntemptError);
     expect(error.code).toBe(IntemptErrorCode.Retryable);
@@ -209,7 +227,7 @@ describe('error mapping', () => {
     const sdk = await init(VALID);
     nativeRejections.track = { code: 'something_new', message: 'from a newer native SDK' };
 
-    const error = await sdk.track('e').catch((e: unknown) => e as IntemptError);
+    const error = await rejection(sdk.track('e'));
 
     expect(error.code).toBe(IntemptErrorCode.Unknown);
     // Remapping an unknown code onto a known one would misreport the failure.
@@ -224,7 +242,7 @@ describe('error mapping', () => {
       userInfo: { status: 401 },
     };
 
-    const error = await sdk.track('e').catch((e: unknown) => e as IntemptError);
+    const error = await rejection(sdk.track('e'));
 
     expect(error.code).toBe(IntemptErrorCode.Terminal);
     expect(error.isRetryable).toBe(false);
@@ -237,7 +255,7 @@ describe('error mapping', () => {
       message: 'flush is not available on intempt-android below 3.0',
     };
 
-    const error = await sdk.flush().catch((e: unknown) => e as IntemptError);
+    const error = await rejection(sdk.flush());
 
     expect(error.isUnsupported).toBe(true);
     expect(error.isRetryable).toBe(false);
@@ -247,7 +265,7 @@ describe('error mapping', () => {
     const sdk = await init(VALID);
     nativeRejections.track = { code: 'encoding_failed', message: 'nope' };
 
-    const error = await sdk.track('e').catch((e: unknown) => e);
+    const error = await rejection(sdk.track('e'));
 
     expect(error instanceof IntemptError).toBe(true);
     expect(error instanceof Error).toBe(true);
@@ -257,7 +275,7 @@ describe('error mapping', () => {
     const sdk = await init(VALID);
     nativeRejections.track = null;
 
-    const error = await sdk.track('e').catch((e: unknown) => e as IntemptError);
+    const error = await rejection(sdk.track('e'));
 
     expect(error).toBeInstanceOf(IntemptError);
     expect(error.code).toBe(IntemptErrorCode.Unknown);
