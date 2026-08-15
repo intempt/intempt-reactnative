@@ -192,6 +192,17 @@ jobs:
               }
             }
           }
+          // Settings repositories alone are not enough. Resolution runs in
+          // PREFER_PROJECT mode and React Native's plugin adds project-level
+          // repositories to library modules (its own node_modules maven dir),
+          // so any project with project repos never consults the settings set.
+          // Adding mavenLocal per project is what actually makes 3.0.0-LOCAL
+          // resolvable. Diagnosed from CI, printing the repository sets.
+          projectsLoaded { gradle ->
+            gradle.allprojects { p ->
+              p.repositories { mavenLocal() }
+            }
+          }
           INIT
           echo "intemptAndroidVersion=3.0.0-LOCAL" >> gradle.properties
       - name: Build
