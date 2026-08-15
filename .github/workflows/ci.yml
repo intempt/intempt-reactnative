@@ -176,11 +176,20 @@ jobs:
           # hook settingsEvaluated, not beforeSettings: the React Native
           # settings plugin configures dependencyResolutionManagement itself,
           # so anything added before it is applied gets replaced.
+          #
+          # google() and mavenCentral() are repeated deliberately. An earlier
+          # version set repositoriesMode to PREFER_SETTINGS, which left
+          # mavenLocal as the ONLY repository and broke React Native's own
+          # included gradle-plugin build — it could not resolve kotlin-stdlib
+          # or gson. Add repositories; never narrow them.
           cat > init.gradle <<'INIT'
           settingsEvaluated { settings ->
             settings.dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-              repositories { mavenLocal() }
+              repositories {
+                mavenLocal()
+                google()
+                mavenCentral()
+              }
             }
           }
           INIT
