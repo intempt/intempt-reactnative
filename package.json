@@ -24,7 +24,10 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "build": "tsc --project tsconfig.build.json",
-    "clean": "rm -rf lib"
+    "clean": "rm -rf lib",
+    "mutation": "stryker run",
+    "e2e:ios": "./scripts/run-e2e-ios.sh",
+    "check:workflows": "python3 scripts/check-workflows.py"
   },
   "keywords": [
     "intempt",
@@ -46,7 +49,6 @@
     "url": "https://github.com/intempt/intempt-reactnative/issues"
   },
   "homepage": "https://github.com/intempt/intempt-reactnative#readme",
-  "dependencies": {},
   "peerDependencies": {
     "react": "*",
     "react-native": ">=0.76.0"
@@ -56,6 +58,8 @@
     "@babel/preset-env": "^7.26.0",
     "@babel/runtime": "^7.26.0",
     "@react-native/babel-preset": "^0.81.0",
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/jest-runner": "^10.0.0",
     "@types/jest": "^29.5.14",
     "@types/react": "^19.1.0",
     "babel-jest": "^29.7.0",

@@ -1,0 +1,55 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "testRunner": "jest",
+  "jest": {
+    "projectType": "custom",
+    "configFile": "package.json"
+  },
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/**/*.ts",
+    "!src/NativeIntempt.ts"
+  ],
+  "reporters": [
+    "html",
+    "clear-text",
+    "progress"
+  ],
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "thresholds": {
+    "high": 98,
+    "low": 95,
+    "break": 95
+  },
+  "timeoutMS": 20000,
+  "concurrency": 2,
+  "_comment": [
+    "NativeIntempt.ts is excluded because it is a type-only TurboModule spec \u2014 an",
+    "interface plus a TurboModuleRegistry.getEnforcing call. There is no behaviour",
+    "to mutate, and its contents are checked by check-corpus.mjs against the",
+    "contract instead.",
+    "",
+    "break is 95, set AFTER measuring rather than aspirationally. The suite scored",
+    "77.67 on its first run at 99% statement coverage, which is the whole argument",
+    "for mutation testing: every surviving mutant was on a line the tests already",
+    "executed. It is now 97.57.",
+    "",
+    "TWO MUTANTS ARE EQUIVALENT AND WILL NEVER DIE. Chasing them would mean writing",
+    "tests that assert nothing:",
+    "  src/index.ts:66  `value !== null &&` \u2014 typeof null === 'object', so the",
+    "                   mutant calls encodeProperties(null), which returns null.",
+    "                   Identical output by a different route.",
+    "  src/errors.ts:77 Object.setPrototypeOf \u2014 only load-bearing when transpiled",
+    "                   to ES5. This build targets esnext, where instanceof works",
+    "                   without it. The line stays for consumers who do target ES5.",
+    "So the practical ceiling here is ~99, not 100.",
+    "",
+    "concurrency is 2 deliberately. Stryker counts a TIMED-OUT mutant as KILLED, so",
+    "a machine competing with its own test runs inflates the score and the inflation",
+    "is indistinguishable from progress. 4 mutants time out on this machine even at",
+    "2 workers, so the honest score excluding them is 197/206 = 95.6, not 97.57."
+  ]
+}

@@ -12,3 +12,7 @@ ios/*.xcworkspace
 
 .DS_Store
 *.log
+
+# mutation + e2e output
+reports/
+.stryker-tmp/

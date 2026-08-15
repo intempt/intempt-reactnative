@@ -52,6 +52,30 @@ jobs:
           name: coverage
           path: coverage/
 
+  # Coverage says a line ran. Mutation says an assertion would have noticed if
+  # it changed. This suite scored 77.67% on its first mutation run while sitting
+  # at 99% statement coverage — every surviving mutant was on a line the tests
+  # already executed, so coverage could not see any of them.
+  mutation:
+    name: Mutation testing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Stryker
+        # The threshold break is in stryker.conf.json at 95, set after measuring.
+        # Two mutants are equivalent and documented there; the ceiling is ~99.
+        run: npx stryker run
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: reports/mutation/
+
   # The Swift bridge is compiled by nothing until someone runs pod install in a
   # host app. This resolves every Intempt symbol it uses against a real SDK
   # build, which is where the one shipped bug in that file lived
@@ -208,3 +232,30 @@ jobs:
       - name: Build
         working-directory: HostApp/android
         run: ./gradlew assembleDebug --no-daemon --init-script init.gradle
+
+  # The only check that runs the whole stack: JavaScript -> TurboModule ->
+  # native SDK -> HTTP -> api.intempt.com, on a booted simulator. Everything
+  # else in this workflow stops at a boundary.
+  #
+  # Asserts on flush(), which resolves to events the SERVER accepted. track()
+  # returning true only means the queue took it, and a transport posting with no
+  # Authorization header produces correct payloads while delivering nothing —
+  # that bug shipped in intempt-android and lost 100% of events.
+  #
+  # Skips itself when the INTEMPT_* secrets are absent, matching intempt-swift's
+  # live contract tests, so a fork still gets a green suite.
+  e2e-ios:
+    name: E2E (simulator, live API)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run the probe app against api.intempt.com
+        env:
+          INTEMPT_API_KEY: ${{ secrets.INTEMPT_API_KEY }}
+          INTEMPT_ORG_ID: ${{ secrets.INTEMPT_ORG_ID }}
+          INTEMPT_PROJECT_ID: ${{ secrets.INTEMPT_PROJECT_ID }}
+          INTEMPT_SOURCE_ID: ${{ secrets.INTEMPT_SOURCE_ID }}
+        run: ./scripts/run-e2e-ios.sh "$RUNNER_TEMP/e2e"
