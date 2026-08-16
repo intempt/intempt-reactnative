@@ -22,11 +22,16 @@ Initial scaffold. Not published.
 
 ### Known gaps
 
-- `Intempt` 0.1.0 is not on CocoaPods trunk yet, so consumers resolve it from
-  git with an explicit `:tag`
-- `intempt-android` reaches full conformance in 3.0; until then 13 methods
-  reject with `unsupported_on_android` and `init()` cannot accept runtime
-  credentials
+- `intempt-android` 3.0.0 is not on Maven Central — the latest published
+  version is 2.0.1, so a consumer's Gradle sync cannot resolve the dependency
+  this package requires. CI resolves it only via a local `3.0.0-LOCAL` publish
+- `setPushToken`, `trackPushOpen` and `trackPushReceived` reject with
+  `unsupported_on_android`; push registration lives inside `FirebaseService`
+  and is not on 3.0's public surface
+- `eventTitle` on `identify()` and `group()` is left unset by default because
+  the two SDKs disagree: `intempt-android` reserves the name "identify" and
+  rejects it case-insensitively, while `intempt-swift` defaults to it. Each
+  platform now names the event itself
 
 ### Not a gap, previously misreported
 

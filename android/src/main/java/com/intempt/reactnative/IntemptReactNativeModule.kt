@@ -1,5 +1,8 @@
 package com.intempt.reactnative
 
+import android.os.Handler
+import android.os.Looper
+import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -7,19 +10,32 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.intempt.core.Intempt
+import com.intempt.core.IntemptInstance
+import com.intempt.core.types.AutocaptureOptions
+import com.intempt.core.types.AutomaticEventsOptions
+import com.intempt.core.types.ConsentAction
+import com.intempt.core.types.IntemptCredentials
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Bridges intempt-android to React Native.
  *
- * Written against the SDK API contract
- * (intempt-swift/docs/SDK-API-CONTRACT.md), not against intempt-android's
- * current surface. Contract methods that intempt-android has not adopted yet
- * reject with `unsupported_on_android` and the method name, so a React Native
- * caller gets a legible answer rather than a missing function.
+ * Written against intempt-android 3.0, which conforms to the SDK API contract
+ * (intempt-swift/docs/SDK-API-CONTRACT.md). An earlier version of this file was
+ * written against 2.x and carried five compensation shims: it re-ordered
+ * record()'s arguments, flattened typed values to strings, resolved an
+ * unconditional `true` because the SDK returned Unit, ignored the credentials
+ * passed to init(), and rejected sixteen methods as unsupported.
  *
- * Every one of those rejections is a conformance gap that disappears when
- * intempt-android 3.0 lands. They are listed in one place — [unsupported] —
- * rather than scattered, so the remaining gap is countable.
+ * All five are gone, and they were not merely redundant against 3.0. The
+ * record() re-ordering would have swapped userId and accountId on every call —
+ * events would have kept flowing, attributed to the wrong entity, with nothing
+ * failing anywhere.
+ *
+ * Push is the only genuine gap left. setPushToken, trackPushOpen and
+ * trackPushReceived are absent from 3.0's public surface — verified against
+ * app/api/app.api, not inferred — because registration lives inside
+ * FirebaseService and is not exposed.
  */
 class IntemptReactNativeModule(
     private val reactContext: ReactApplicationContext,
@@ -27,30 +43,36 @@ class IntemptReactNativeModule(
 
     override fun getName(): String = NAME
 
-    /**
-     * Rejects a contract method intempt-android does not expose yet.
-     *
-     * The message names the contract item so the failure is traceable to a
-     * specific piece of work rather than reading as a bug in this package.
-     */
-    private fun unsupported(promise: Promise, method: String, contractItem: String) {
+    /** Rejects a contract method intempt-android does not expose. */
+    private fun unsupported(promise: Promise, method: String, detail: String) {
         promise.reject(
             "unsupported_on_android",
-            "Intempt.$method is not available on intempt-android yet. " +
-                "Contract item: $contractItem. Arrives in intempt-android 3.0.",
+            "Intempt.$method is not available on intempt-android. $detail",
         )
     }
 
-    /** Runs [body], converting any throw into a contract error code. */
-    private inline fun guarded(promise: Promise, method: String, body: () -> Unit) {
-        try {
-            body()
-        } catch (e: UninitializedPropertyAccessException) {
+    /**
+     * Resolves a named instance, or rejects legibly.
+     *
+     * Calling before init() is an integration mistake that should produce a
+     * readable error rather than a null-pointer crash in someone's release build.
+     */
+    private inline fun withInstance(
+        instanceName: String,
+        method: String,
+        promise: Promise,
+        body: (IntemptInstance) -> Unit,
+    ) {
+        val instance = Intempt.instance(instanceName)
+        if (instance == null) {
             promise.reject(
                 "not_initialized",
-                "Intempt.$method called before init()",
-                e,
+                "Intempt.$method called before init() for instance '$instanceName'",
             )
+            return
+        }
+        try {
+            body(instance)
         } catch (e: IllegalArgumentException) {
             promise.reject("invalid_property_value", e.message ?: "invalid argument", e)
         } catch (e: Exception) {
@@ -62,15 +84,6 @@ class IntemptReactNativeModule(
     // Lifecycle
     // ---------------------------------------------------------------------
 
-    /**
-     * intempt-android reads credentials from `assets/intempt-config.json` and
-     * its `initialize` takes only a Context. The credentials passed here cannot
-     * reach it until 3.0 adds a runtime-credential entry point.
-     *
-     * Rather than accept them and silently ignore them — which would look like
-     * a working integration sending events to nowhere — this fails loudly when
-     * the asset is absent, and says exactly what to do.
-     */
     @ReactMethod
     fun initialize(
         instanceName: String,
@@ -80,100 +93,106 @@ class IntemptReactNativeModule(
         sourceId: String,
         promise: Promise,
     ) {
-        if (instanceName != DEFAULT_INSTANCE) {
-            unsupported(
-                promise,
-                "init(instanceName = \"$instanceName\")",
-                "named instances; intempt-android is a singleton object",
-            )
-            return
-        }
-
-        guarded(promise, "init") {
-            val ok = Intempt.initialize(reactContext)
-            if (ok && Intempt.isInitialized) {
-                promise.resolve(null)
-            } else {
+        try {
+            val credentials = IntemptCredentials(apiKey, orgId, projectId, sourceId)
+            val problems = credentials.problems()
+            if (problems.isNotEmpty()) {
+                // problems() names the actual failure. The blanks are already
+                // rejected in JS, so the branch that survives to here is almost
+                // always a malformed apiKey ("<id>.<secret>"), which a message
+                // about non-blank fields actively misdirects.
+                promise.reject("missing_configuration", problems.joinToString("; "))
+                return
+            }
+            // The three-argument overload creates a NAMED instance. The asset file
+            // (assets/intempt-config.json) is still supported by the SDK for apps
+            // that prefer it, but is no longer the only path — which is what made
+            // the SDK wrappable at all.
+            //
+            // It returns null on every failure path in Intempt.start(): a blank
+            // instance name, a graph that failed to construct, or a lost init
+            // race. Resolving regardless would hand JS a registry entry whose
+            // every later call rejects `not_initialized` — the same lie as the
+            // unconditional `true` this module used to return.
+            if (Intempt.initialize(reactContext, credentials, instanceName) == null) {
                 promise.reject(
                     "missing_configuration",
-                    "intempt-android could not initialise. Until 3.0 it reads credentials " +
-                        "from android/app/src/main/assets/intempt-config.json and ignores the " +
-                        "ones passed to init(). Add that file, or upgrade to intempt-android 3.0 " +
-                        "which accepts credentials at runtime.",
+                    "Intempt.init could not create instance '$instanceName'. " +
+                        "The instance name must be non-blank.",
                 )
+                return
             }
+            promise.resolve(null)
+        } catch (e: Exception) {
+            promise.reject("unknown", e.message ?: "Intempt.init failed", e)
         }
     }
 
     // ---------------------------------------------------------------------
-    // Capture
+    // Capture — every method forwards the SDK's real Boolean
     // ---------------------------------------------------------------------
 
     @ReactMethod
-    fun track(instanceName: String, eventTitle: String, data: ReadableMap?, promise: Promise) {
-        guarded(promise, "track") {
-            Intempt.track(eventTitle, ReadableMapConverter.toStringMap(data).orEmpty())
-            // intempt-android returns Unit, so there is no acceptance signal to
-            // forward. Resolving true here would be a lie the contract's Bool
-            // return is supposed to prevent; 3.0 returns the real value.
-            promise.resolve(true)
+    fun track(instanceName: String, eventTitle: String, data: ReadableMap?, promise: Promise) =
+        withInstance(instanceName, "track", promise) {
+            promise.resolve(it.track(eventTitle, ReadableMapConverter.toValueMap(data).orEmpty()))
         }
-    }
 
+    /**
+     * [eventTitle] is nullable on purpose, and JS must not default it.
+     *
+     * "identify" is in CustomCaptureService.forbiddenEventNames and the check is
+     * case-insensitive, so a default of "Identify" makes isIdentifyValid report
+     * ForbiddenEventName and return false before the event is ever built — every
+     * default identify() would resolve false and queue nothing. The SDK already
+     * names the event itself when this is null.
+     */
     @ReactMethod
     fun identify(
         instanceName: String,
         userId: String,
-        eventTitle: String,
+        eventTitle: String?,
         userAttributes: ReadableMap?,
         data: ReadableMap?,
         promise: Promise,
-    ) {
-        guarded(promise, "identify") {
-            Intempt.identify(
+    ) = withInstance(instanceName, "identify", promise) {
+        promise.resolve(
+            it.identify(
                 userId,
                 eventTitle,
-                ReadableMapConverter.toStringMap(userAttributes),
-                ReadableMapConverter.toStringMap(data),
-            )
-            promise.resolve(true)
-        }
+                ReadableMapConverter.toValueMap(userAttributes),
+                ReadableMapConverter.toValueMap(data),
+            ),
+        )
     }
 
+    /** [eventTitle] nullable for the same reason as [identify]; GroupEvent names itself "Group". */
     @ReactMethod
     fun group(
         instanceName: String,
         accountId: String,
-        eventTitle: String,
+        eventTitle: String?,
         accountAttributes: ReadableMap?,
         promise: Promise,
-    ) {
-        guarded(promise, "group") {
-            Intempt.group(
-                accountId,
-                eventTitle,
-                ReadableMapConverter.toStringMap(accountAttributes),
-            )
-            promise.resolve(true)
-        }
+    ) = withInstance(instanceName, "group", promise) {
+        promise.resolve(
+            it.group(accountId, eventTitle, ReadableMapConverter.toValueMap(accountAttributes)),
+        )
     }
 
     @ReactMethod
-    fun alias(instanceName: String, userId: String, anotherUserId: String, promise: Promise) {
-        guarded(promise, "alias") {
-            Intempt.alias(userId, anotherUserId)
-            promise.resolve(true)
+    fun alias(instanceName: String, userId: String, anotherUserId: String, promise: Promise) =
+        withInstance(instanceName, "alias", promise) {
+            promise.resolve(it.alias(userId, anotherUserId))
         }
-    }
 
     /**
-     * Note the argument order handed to the SDK.
+     * Contract argument order, forwarded unchanged.
      *
-     * The contract orders these `(title, userId, accountId, data, userAttrs,
-     * accountAttrs)`. intempt-android orders them `(title, accountId, userId,
-     * accountAttrs, userAttrs, data)` — identifiers swapped and attributes
-     * reversed. The re-ordering below is the whole reason this comment exists;
-     * it disappears when 3.0 adopts the contract order.
+     * 2.x ordered these `(title, accountId, userId, acctAttrs, userAttrs, data)`
+     * and this module re-ordered to compensate. 3.0 adopts the contract order, so
+     * the compensation is gone. Leaving it would have silently swapped the two
+     * identifiers on every call.
      */
     @ReactMethod
     fun record(
@@ -185,18 +204,17 @@ class IntemptReactNativeModule(
         userAttributes: ReadableMap?,
         accountAttributes: ReadableMap?,
         promise: Promise,
-    ) {
-        guarded(promise, "record") {
-            Intempt.record(
+    ) = withInstance(instanceName, "record", promise) {
+        promise.resolve(
+            it.record(
                 eventTitle,
-                accountId,
                 userId,
-                ReadableMapConverter.toStringMap(accountAttributes),
-                ReadableMapConverter.toStringMap(userAttributes),
-                ReadableMapConverter.toStringMap(data),
-            )
-            promise.resolve(true)
-        }
+                accountId,
+                ReadableMapConverter.toValueMap(data),
+                ReadableMapConverter.toValueMap(userAttributes),
+                ReadableMapConverter.toValueMap(accountAttributes),
+            ),
+        )
     }
 
     // ---------------------------------------------------------------------
@@ -204,29 +222,22 @@ class IntemptReactNativeModule(
     // ---------------------------------------------------------------------
 
     @ReactMethod
-    fun productAdd(instanceName: String, productId: String, quantity: Double, promise: Promise) {
-        guarded(promise, "productAdd") {
-            Intempt.productAdd(productId, quantity.toInt())
-            promise.resolve(true)
+    fun productAdd(instanceName: String, productId: String, quantity: Double, promise: Promise) =
+        withInstance(instanceName, "productAdd", promise) {
+            promise.resolve(it.productAdd(productId, quantity.toInt()))
         }
-    }
 
     @ReactMethod
-    fun productView(instanceName: String, productId: String, promise: Promise) {
-        guarded(promise, "productView") {
-            Intempt.productView(productId)
-            promise.resolve(true)
+    fun productView(instanceName: String, productId: String, promise: Promise) =
+        withInstance(instanceName, "productView", promise) {
+            promise.resolve(it.productView(productId))
         }
-    }
 
     @ReactMethod
-    fun productOrdered(instanceName: String, products: ReadableArray, promise: Promise) {
-        guarded(promise, "productOrdered") {
-            val parsed = ReadableMapConverter.toOrderedProducts(products)
-            Intempt.productOrdered(parsed)
-            promise.resolve(true)
+    fun productOrdered(instanceName: String, products: ReadableArray, promise: Promise) =
+        withInstance(instanceName, "productOrdered", promise) {
+            promise.resolve(it.productOrdered(ReadableMapConverter.toOrderedProducts(products)))
         }
-    }
 
     // ---------------------------------------------------------------------
     // Consent
@@ -242,87 +253,142 @@ class IntemptReactNativeModule(
         category: String?,
         promise: Promise,
     ) {
-        if (action !in CONSENT_ACTIONS) {
+        val parsed = ConsentAction.fromWireValue(action)
+        if (parsed == null) {
             promise.reject(
                 "invalid_property_value",
-                "consent action must be one of: ${CONSENT_ACTIONS.joinToString(", ")}",
+                "consent action must be one of: " +
+                    ConsentAction.entries.joinToString(", ") { it.wireValue },
             )
             return
         }
-        guarded(promise, "consent") {
-            Intempt.consent(action, validUntil.toLong(), email, message, category)
-            promise.resolve(true)
+        withInstance(instanceName, "consent", promise) {
+            promise.resolve(it.consent(parsed, validUntil.toLong(), email, message, category))
         }
     }
 
     // ---------------------------------------------------------------------
-    // Opt in / out — names differ, behaviour maps cleanly
+    // Identity and lifecycle
     // ---------------------------------------------------------------------
-
-    @ReactMethod
-    fun optIn(instanceName: String, promise: Promise) {
-        guarded(promise, "optIn") {
-            Intempt.Tracking.start()
-            promise.resolve(null)
-        }
-    }
-
-    @ReactMethod
-    fun optOut(instanceName: String, promise: Promise) {
-        guarded(promise, "optOut") {
-            Intempt.Tracking.stop()
-            promise.resolve(null)
-        }
-    }
-
-    @ReactMethod
-    fun hasOptedOut(instanceName: String, promise: Promise) {
-        guarded(promise, "hasOptedOut") {
-            promise.resolve(!Intempt.Tracking.isTrackingEnabled())
-        }
-    }
-
-    @ReactMethod
-    fun logOut(instanceName: String, promise: Promise) {
-        guarded(promise, "logOut") {
-            Intempt.logOut()
-            promise.resolve(null)
-        }
-    }
-
-    // ---------------------------------------------------------------------
-    // Conformance gaps. Each disappears with intempt-android 3.0.
-    // ---------------------------------------------------------------------
-
-    @ReactMethod
-    fun reset(instanceName: String, promise: Promise) =
-        unsupported(promise, "reset", "reset() — new identity and empty queue")
 
     @ReactMethod
     fun getProfileId(instanceName: String, promise: Promise) =
-        unsupported(promise, "getProfileId", "identity accessors")
+        withInstance(instanceName, "getProfileId", promise) { promise.resolve(it.getProfileId()) }
 
     @ReactMethod
     fun getSessionId(instanceName: String, promise: Promise) =
-        unsupported(promise, "getSessionId", "identity accessors")
+        withInstance(instanceName, "getSessionId", promise) { promise.resolve(it.getSessionId()) }
 
     @ReactMethod
+    fun logOut(instanceName: String, promise: Promise) =
+        withInstance(instanceName, "logOut", promise) {
+            it.logOut()
+            promise.resolve(null)
+        }
+
+    @ReactMethod
+    fun reset(instanceName: String, promise: Promise) =
+        withInstance(instanceName, "reset", promise) {
+            it.reset()
+            promise.resolve(null)
+        }
+
+    // ---------------------------------------------------------------------
+    // Opt in / out
+    // ---------------------------------------------------------------------
+
+    @ReactMethod
+    fun optIn(instanceName: String, promise: Promise) =
+        withInstance(instanceName, "optIn", promise) {
+            it.optIn()
+            promise.resolve(null)
+        }
+
+    @ReactMethod
+    fun optOut(instanceName: String, promise: Promise) =
+        withInstance(instanceName, "optOut", promise) {
+            it.optOut()
+            promise.resolve(null)
+        }
+
+    @ReactMethod
+    fun hasOptedOut(instanceName: String, promise: Promise) =
+        withInstance(instanceName, "hasOptedOut", promise) { promise.resolve(it.hasOptedOut()) }
+
+    // ---------------------------------------------------------------------
+    // Delivery
+    // ---------------------------------------------------------------------
+
+    /**
+     * The only method here that does not settle synchronously, and so the only
+     * one that can strand its promise.
+     *
+     * The completion is the sole path to resolve, and two SDK paths drop it
+     * without raising: CustomCaptureComponent.flush wraps the call in
+     * UtilsService.withTryCatch, which catches Throwable, logs, and returns
+     * null; and DeliveryMessages.Worker.runMessage discards a FLUSH_QUEUE
+     * message ("Could not restart the delivery worker, dropping") after the
+     * completion is already queued. An unopenable queue DB hits the first. With
+     * no timeout anywhere in the stack, `await intempt.flush()` would then never
+     * resolve and never reject.
+     */
+    @ReactMethod
     fun flush(instanceName: String, promise: Promise) =
-        unsupported(
-            promise,
-            "flush",
-            "flush() on the instance; today it exists only on com.intempt.core.queue.DeliveryMessages",
-        )
+        withInstance(instanceName, "flush", promise) { instance ->
+            val settled = AtomicBoolean(false)
+            val timeout = Handler(Looper.getMainLooper())
+            val expire = Runnable {
+                if (settled.compareAndSet(false, true)) {
+                    promise.reject(
+                        "flush_timeout",
+                        "Intempt.flush did not report completion within ${FLUSH_TIMEOUT_MS}ms",
+                    )
+                }
+            }
+            timeout.postDelayed(expire, FLUSH_TIMEOUT_MS)
+            // The completion carries the number of events the SERVER accepted,
+            // which is the only observable difference between queued and
+            // delivered.
+            instance.flush { delivered ->
+                if (settled.compareAndSet(false, true)) {
+                    timeout.removeCallbacks(expire)
+                    promise.resolve(delivered)
+                }
+            }
+        }
 
     @ReactMethod
     fun getFlushInterval(instanceName: String, promise: Promise) =
-        unsupported(promise, "getFlushInterval", "flushInterval on the instance")
+        withInstance(instanceName, "getFlushInterval", promise) {
+            promise.resolve(it.flushInterval)
+        }
 
     @ReactMethod
     fun setFlushInterval(instanceName: String, seconds: Double, promise: Promise) =
-        unsupported(promise, "setFlushInterval", "flushInterval on the instance")
+        withInstance(instanceName, "setFlushInterval", promise) {
+            it.flushInterval = seconds.toInt()
+            promise.resolve(null)
+        }
 
+    // ---------------------------------------------------------------------
+    // Personalization
+    // ---------------------------------------------------------------------
 
+    /**
+     * NOT conformant on Android, and the reason is worth stating precisely.
+     *
+     * The contract specifies `products(...) -> Result<[ProductRecommendation]>`
+     * and intempt-swift returns exactly that. intempt-android 3.0 returns a raw
+     * `kotlinx.serialization.json.JsonObject?` from the feed endpoint — a
+     * different type, not merely a different name.
+     *
+     * The bridge could parse that JSON into the contract's shape, but only by
+     * guessing at a payload structure nobody has probed, and a mapping invented
+     * here would be wrong in a way TypeScript would then assert as true. A
+     * precise rejection is better than a confident guess.
+     *
+     * Tracked as an Android conformance item; iOS is unaffected.
+     */
     @ReactMethod
     fun products(
         instanceName: String,
@@ -334,66 +400,105 @@ class IntemptReactNativeModule(
     ) = unsupported(
         promise,
         "products",
-        "products(feedId, count, fields, productId); the nearest existing call is the suspend " +
-            "recommendation(), which has no bridgeable signature",
+        "intempt-android returns a raw JsonObject from the feed endpoint rather than the " +
+            "contract's typed ProductRecommendation list. Mapping it here would mean inventing " +
+            "a payload shape. iOS returns the contract type.",
     )
+
+    // ---------------------------------------------------------------------
+    // Automatic events
+    // ---------------------------------------------------------------------
 
     @ReactMethod
     fun getAutomaticEvents(instanceName: String, promise: Promise) =
-        unsupported(
-            promise,
-            "getAutomaticEvents",
-            "runtime automatic-event toggles; today they are read once from the config asset",
-        )
+        withInstance(instanceName, "getAutomaticEvents", promise) { instance ->
+            val options = instance.automaticEvents
+            promise.resolve(
+                Arguments.createMap().apply {
+                    putBoolean("sessions", options.sessions)
+                    putBoolean("versionChanges", options.versionChanges)
+                    putBoolean("appStateChanges", options.appStateChanges)
+                },
+            )
+        }
 
     @ReactMethod
     fun setAutomaticEvents(instanceName: String, options: ReadableMap, promise: Promise) =
-        unsupported(
-            promise,
-            "setAutomaticEvents",
-            "runtime automatic-event toggles; today they are read once from the config asset",
-        )
+        withInstance(instanceName, "setAutomaticEvents", promise) { instance ->
+            // An absent key leaves that toggle alone. Defaulting a missing key to
+            // false would silently disable session tracking for a caller who only
+            // meant to change versionChanges.
+            val current = instance.automaticEvents
+            instance.automaticEvents = AutomaticEventsOptions(
+                sessions = optBool(options, "sessions", current.sessions),
+                versionChanges = optBool(options, "versionChanges", current.versionChanges),
+                appStateChanges = optBool(options, "appStateChanges", current.appStateChanges),
+            )
+            promise.resolve(null)
+        }
+
+    // ---------------------------------------------------------------------
+    // Autocapture
+    // ---------------------------------------------------------------------
 
     @ReactMethod
     fun configureAutocapture(instanceName: String, options: ReadableMap, promise: Promise) =
-        unsupported(
-            promise,
-            "autocapture.configure",
-            "runtime autocapture options; today isTouchEnabled/isTextCaptureEnabled/" +
-                "isAutoCaptureEnabled are read once from the config asset",
-        )
+        withInstance(instanceName, "autocapture.configure", promise) { instance ->
+            val current = instance.autocapture.options
+            // captureText is Android-only granularity and stays in the contract's
+            // platform annex — the cross-platform surface is screenViews and
+            // controlInteractions, so this preserves whatever it already was.
+            instance.autocapture.configure(
+                AutocaptureOptions(
+                    screenViews = optBool(options, "screenViews", current.screenViews),
+                    controlInteractions =
+                        optBool(options, "controlInteractions", current.controlInteractions),
+                    captureText = current.captureText,
+                ),
+            )
+            promise.resolve(null)
+        }
 
     @ReactMethod
     fun startAutocapture(instanceName: String, promise: Promise) =
-        unsupported(
-            promise,
-            "autocapture.start",
-            "explicit autocapture lifecycle; Android starts from config at initialize()",
-        )
+        withInstance(instanceName, "autocapture.start", promise) {
+            it.autocapture.start()
+            promise.resolve(null)
+        }
 
     @ReactMethod
     fun stopAutocapture(instanceName: String, promise: Promise) =
-        unsupported(promise, "autocapture.stop", "explicit autocapture lifecycle")
+        withInstance(instanceName, "autocapture.stop", promise) {
+            it.autocapture.stop()
+            promise.resolve(null)
+        }
 
     @ReactMethod
     fun isAutocaptureRunning(instanceName: String, promise: Promise) =
-        unsupported(promise, "autocapture.isRunning", "explicit autocapture lifecycle")
+        withInstance(instanceName, "autocapture.isRunning", promise) {
+            promise.resolve(it.autocapture.isRunning)
+        }
+
+    // ---------------------------------------------------------------------
+    // Push — genuinely absent from intempt-android's public surface
+    // ---------------------------------------------------------------------
 
     @ReactMethod
     fun setPushToken(instanceName: String, token: String, promise: Promise) =
         unsupported(
             promise,
             "setPushToken",
-            "public push API; the logic exists in FirebaseService but is not exposed",
+            "Registration happens inside FirebaseService and is not exposed. Android push " +
+                "is wired through Firebase directly; see the SDK's push documentation.",
         )
 
     @ReactMethod
     fun trackPushOpen(instanceName: String, payload: ReadableMap, promise: Promise) =
-        unsupported(promise, "trackPushOpen", "public push API")
+        unsupported(promise, "trackPushOpen", "No public push API on intempt-android.")
 
     @ReactMethod
     fun trackPushReceived(instanceName: String, payload: ReadableMap, promise: Promise) =
-        unsupported(promise, "trackPushReceived", "public push API")
+        unsupported(promise, "trackPushReceived", "No public push API on intempt-android.")
 
     // ---------------------------------------------------------------------
     // Diagnostics
@@ -401,14 +506,23 @@ class IntemptReactNativeModule(
 
     @ReactMethod
     fun getSdkVersion(promise: Promise) {
-        guarded(promise, "getSdkVersion") {
+        // Guarded because a consumer pinning intemptAndroidVersion back to 2.x
+        // has no BuildConfig.sdkVersion field: the NoSuchFieldError would escape
+        // the @ReactMethod as a native crash rather than a rejected promise.
+        try {
             promise.resolve(com.intempt.core.BuildConfig.sdkVersion)
+        } catch (e: Throwable) {
+            promise.reject("unknown", e.message ?: "Intempt.getSdkVersion failed", e)
         }
     }
 
+    private fun optBool(map: ReadableMap, key: String, fallback: Boolean): Boolean =
+        if (map.hasKey(key)) map.getBoolean(key) else fallback
+
     companion object {
         const val NAME = "IntemptReactNative"
-        private const val DEFAULT_INSTANCE = "default"
-        private val CONSENT_ACTIONS = setOf("accept", "reject")
+
+        /** Long enough for a slow network round trip, short enough to surface a stuck queue. */
+        private const val FLUSH_TIMEOUT_MS = 30_000L
     }
 }

@@ -130,14 +130,14 @@
         "args": [
           "default",
           "user-1",
-          "Identify",
+          null,
           {
             "email": "a@b.com"
           },
           null
         ]
       },
-      "note": "eventTitle defaults to \"Identify\"."
+      "note": "eventTitle is left unset. intempt-android reserves \"identify\" and rejects it case-insensitively, so a default here silently dropped the event; each SDK names it."
     },
     {
       "method": "group",
@@ -157,7 +157,7 @@
         "args": [
           "default",
           "acct-1",
-          "Identify",
+          null,
           {
             "tier": "enterprise"
           }

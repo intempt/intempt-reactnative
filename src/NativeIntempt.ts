@@ -36,7 +36,7 @@ export interface Spec extends TurboModule {
   identify(
     instanceName: string,
     userId: string,
-    eventTitle: string,
+    eventTitle: string | null,
     userAttributes: Object | null,
     data: Object | null
   ): Promise<boolean>;
@@ -44,7 +44,7 @@ export interface Spec extends TurboModule {
   group(
     instanceName: string,
     accountId: string,
-    eventTitle: string,
+    eventTitle: string | null,
     accountAttributes: Object | null
   ): Promise<boolean>;
 

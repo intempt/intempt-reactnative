@@ -233,12 +233,17 @@ describe('argument defaults — index.ts:386-512', () => {
     expect(nativeCalls[0]!.args).toEqual(['default', 'accept', 100, null, null, null]);
   });
 
-  it('defaults identify and group event titles to Identify', async () => {
+  // Regression: this asserted a default of 'Identify'. "identify" is in
+  // CustomCaptureService.forbiddenEventNames on intempt-android and the match
+  // is case-insensitive, so that default made every default identify() and
+  // group() fail validation and queue nothing — resolving false while the
+  // caller had no reason to look. Each SDK names the event itself when unset.
+  it('leaves identify and group event titles unset so each SDK names its own', async () => {
     const s = await sdk();
     await s.identify('u');
     await s.group('a');
-    expect(nativeCalls[0]!.args[2]).toBe('Identify');
-    expect(nativeCalls[1]!.args[2]).toBe('Identify');
+    expect(nativeCalls[0]!.args[2]).toBeNull();
+    expect(nativeCalls[1]!.args[2]).toBeNull();
   });
 
   it('honours an explicit event title over the default', async () => {

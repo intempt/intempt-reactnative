@@ -150,7 +150,11 @@ export class IntemptInstance {
       NativeIntempt.identify(
         this.instanceName,
         userId,
-        options.eventTitle ?? 'Identify',
+        // Not defaulted. "identify" is a reserved event name on the native
+        // side and the match is case-insensitive, so sending "Identify" makes
+        // the call fail validation and queue nothing. Both SDKs name the event
+        // themselves when this is absent.
+        options.eventTitle ?? null,
         encodeProperties(options.userAttributes),
         encodeProperties(options.data)
       )
@@ -172,7 +176,9 @@ export class IntemptInstance {
       NativeIntempt.group(
         this.instanceName,
         accountId,
-        options.eventTitle ?? 'Identify',
+        // Same reservation as identify(); the default here was also the wrong
+        // word — a group event is named "Group", not "Identify".
+        options.eventTitle ?? null,
         encodeProperties(options.accountAttributes)
       )
     );

@@ -44,7 +44,7 @@ RCT_EXTERN_METHOD(track
 RCT_EXTERN_METHOD(identify
                   : (NSString *)instanceName userId
                   : (NSString *)userId eventTitle
-                  : (NSString *)eventTitle userAttributes
+                  : (nullable NSString *)eventTitle userAttributes
                   : (nullable NSDictionary *)userAttributes data
                   : (nullable NSDictionary *)data resolver
                   : (RCTPromiseResolveBlock)resolve rejecter
@@ -53,7 +53,7 @@ RCT_EXTERN_METHOD(identify
 RCT_EXTERN_METHOD(group
                   : (NSString *)instanceName accountId
                   : (NSString *)accountId eventTitle
-                  : (NSString *)eventTitle accountAttributes
+                  : (nullable NSString *)eventTitle accountAttributes
                   : (nullable NSDictionary *)accountAttributes resolver
                   : (RCTPromiseResolveBlock)resolve rejecter
                   : (RCTPromiseRejectBlock)reject)
