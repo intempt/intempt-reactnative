@@ -13,9 +13,6 @@ import com.intempt.core.types.AutocaptureOptions
 import com.intempt.core.types.AutomaticEventsOptions
 import com.intempt.core.types.ConsentAction
 import com.intempt.core.types.IntemptCredentials
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 /**
  * Bridges intempt-android to React Native.
@@ -40,8 +37,6 @@ import kotlinx.coroutines.launch
 class IntemptReactNativeModule(
     private val reactContext: ReactApplicationContext,
 ) : ReactContextBaseJavaModule(reactContext) {
-
-    private val scope = CoroutineScope(Dispatchers.IO)
 
     override fun getName(): String = NAME
 
@@ -97,7 +92,7 @@ class IntemptReactNativeModule(
     ) {
         try {
             val credentials = IntemptCredentials(apiKey, orgId, projectId, sourceId)
-            if (!credentials.isValid()) {
+            if (!credentials.isValid) {
                 promise.reject(
                     "missing_configuration",
                     "apiKey, orgId, projectId and sourceId must all be non-blank",
@@ -250,11 +245,11 @@ class IntemptReactNativeModule(
 
     @ReactMethod
     fun getProfileId(instanceName: String, promise: Promise) =
-        withInstance(instanceName, "getProfileId", promise) { promise.resolve(it.profileId) }
+        withInstance(instanceName, "getProfileId", promise) { promise.resolve(it.getProfileId()) }
 
     @ReactMethod
     fun getSessionId(instanceName: String, promise: Promise) =
-        withInstance(instanceName, "getSessionId", promise) { promise.resolve(it.sessionId) }
+        withInstance(instanceName, "getSessionId", promise) { promise.resolve(it.getSessionId()) }
 
     @ReactMethod
     fun logOut(instanceName: String, promise: Promise) =
@@ -322,6 +317,21 @@ class IntemptReactNativeModule(
     // Personalization
     // ---------------------------------------------------------------------
 
+    /**
+     * NOT conformant on Android, and the reason is worth stating precisely.
+     *
+     * The contract specifies `products(...) -> Result<[ProductRecommendation]>`
+     * and intempt-swift returns exactly that. intempt-android 3.0 returns a raw
+     * `kotlinx.serialization.json.JsonObject?` from the feed endpoint — a
+     * different type, not merely a different name.
+     *
+     * The bridge could parse that JSON into the contract's shape, but only by
+     * guessing at a payload structure nobody has probed, and a mapping invented
+     * here would be wrong in a way TypeScript would then assert as true. A
+     * precise rejection is better than a confident guess.
+     *
+     * Tracked as an Android conformance item; iOS is unaffected.
+     */
     @ReactMethod
     fun products(
         instanceName: String,
@@ -330,35 +340,13 @@ class IntemptReactNativeModule(
         fields: ReadableArray,
         productId: String?,
         promise: Promise,
-    ) = withInstance(instanceName, "products", promise) { instance ->
-        // products() is a suspend function and the bridge is callback-based.
-        scope.launch {
-            try {
-                val list = instance.products(
-                    feedId,
-                    count.toInt(),
-                    ReadableMapConverter.toStringList(fields).orEmpty(),
-                    productId,
-                )
-                val out = Arguments.createArray()
-                list.forEach { product ->
-                    val map = Arguments.createMap()
-                    val attributes = Arguments.createMap()
-                    product.attributes.forEach { (k, v) -> attributes.putString(k, v) }
-                    map.putMap("attributes", attributes)
-                    product.productId?.let { map.putString("productId", it) }
-                    product.title?.let { map.putString("title", it) }
-                    product.imageUrl?.let { map.putString("imageUrl", it) }
-                    product.url?.let { map.putString("url", it) }
-                    product.price?.let { map.putDouble("price", it) }
-                    out.pushMap(map)
-                }
-                promise.resolve(out)
-            } catch (e: Exception) {
-                promise.reject("transport", e.message ?: "products() failed", e)
-            }
-        }
-    }
+    ) = unsupported(
+        promise,
+        "products",
+        "intempt-android returns a raw JsonObject from the feed endpoint rather than the " +
+            "contract's typed ProductRecommendation list. Mapping it here would mean inventing " +
+            "a payload shape. iOS returns the contract type.",
+    )
 
     // ---------------------------------------------------------------------
     // Automatic events
