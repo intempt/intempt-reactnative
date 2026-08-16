@@ -3,56 +3,76 @@ package com.intempt.reactnative
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.ReadableType
+import com.intempt.core.types.IntemptValue
 
 /**
- * Converts React Native's bridge types into what intempt-android accepts.
+ * Converts React Native's bridge types into what intempt-android 3.0 accepts.
  *
- * intempt-android takes `Map<String, String>` until 3.0, so numbers and
- * booleans have to be rendered as text on the way in. That coercion is LOSSY
- * and is the single clearest argument for the contract's typed values: a caller
- * passing `{seats: 3}` cannot currently be distinguished downstream from one
- * passing `{seats: "3"}`.
+ * This file used to flatten everything to `Map<String, String>`, because that is
+ * all the SDK took before 3.0. The coercion was lossy in the exact way the typed
+ * contract exists to prevent: a caller passing `{seats: 3}` shipped `"3"`, and
+ * nothing downstream could tell that from a caller who really meant the string.
  *
- * The coercion is deliberately explicit and centralised here so that when 3.0
- * lands, one file changes and the loss stops.
+ * 3.0 takes `Map<String, IntemptValue>`, so the loss is gone. Numbers stay
+ * numbers, booleans stay booleans, nested maps and arrays keep their structure
+ * instead of being JSON-encoded into a string.
  */
 object ReadableMapConverter {
 
     /**
-     * Flattens a bridge map to `Map<String, String>`.
+     * Converts a bridge map, or null when absent.
      *
-     * Numbers render without a trailing `.0` when integral, because `3.0` is a
-     * surprising value to find in an analytics property that was written as 3.
-     * Nested maps and arrays are JSON-encoded rather than dropped — a truncated
-     * property is harder to debug than an escaped one.
+     * Null and absent are kept distinct all the way down: the JavaScript layer
+     * already drops `undefined` keys and forwards explicit nulls, because an
+     * explicit null clears an attribute while an absent key must not mention it.
      */
-    fun toStringMap(map: ReadableMap?): Map<String, String>? {
+    fun toValueMap(map: ReadableMap?): Map<String, IntemptValue>? {
         if (map == null) return null
 
-        val out = mutableMapOf<String, String>()
+        val out = mutableMapOf<String, IntemptValue>()
         val iterator = map.keySetIterator()
         while (iterator.hasNextKey()) {
             val key = iterator.nextKey()
-            when (map.getType(key)) {
-                ReadableType.Null -> out[key] = ""
-                ReadableType.Boolean -> out[key] = map.getBoolean(key).toString()
-                ReadableType.Number -> out[key] = formatNumber(map.getDouble(key))
-                ReadableType.String -> out[key] = map.getString(key).orEmpty()
-                ReadableType.Map -> out[key] = jsonOf(map.getMap(key))
-                ReadableType.Array -> out[key] = jsonOf(map.getArray(key))
-            }
+            out[key] = valueOf(map, key)
         }
         return out
+    }
+
+    private fun valueOf(map: ReadableMap, key: String): IntemptValue =
+        when (map.getType(key)) {
+            ReadableType.Null -> IntemptValue.Null
+            ReadableType.Boolean -> IntemptValue.Bool(map.getBoolean(key))
+            // The bridge carries every JavaScript number as a double. IntemptValue.Num
+            // narrows integral doubles back to Long when it serializes, so 3 does not
+            // reach the wire as 3.0.
+            ReadableType.Number -> IntemptValue.Num(map.getDouble(key))
+            ReadableType.String -> IntemptValue.Str(map.getString(key).orEmpty())
+            ReadableType.Map -> IntemptValue.Obj(toValueMap(map.getMap(key)).orEmpty())
+            ReadableType.Array -> IntemptValue.Arr(toValueList(map.getArray(key)))
+        }
+
+    private fun toValueList(array: ReadableArray?): List<IntemptValue> {
+        if (array == null) return emptyList()
+        return (0 until array.size()).map { index ->
+            when (array.getType(index)) {
+                ReadableType.Null -> IntemptValue.Null
+                ReadableType.Boolean -> IntemptValue.Bool(array.getBoolean(index))
+                ReadableType.Number -> IntemptValue.Num(array.getDouble(index))
+                ReadableType.String -> IntemptValue.Str(array.getString(index).orEmpty())
+                ReadableType.Map -> IntemptValue.Obj(toValueMap(array.getMap(index)).orEmpty())
+                ReadableType.Array -> IntemptValue.Arr(toValueList(array.getArray(index)))
+            }
+        }
     }
 
     /**
      * Parses `productOrdered` entries.
      *
-     * A malformed entry throws rather than being skipped. A dropped line item
-     * in an order is a revenue number that is quietly wrong, which is worse
-     * than a loud failure.
+     * A malformed entry throws rather than being skipped. A dropped line item in
+     * an order is a revenue number that is quietly wrong, which is worse than a
+     * loud failure.
      */
-    fun toOrderedProducts(products: ReadableArray): List<Map<String, Any>> =
+    fun toOrderedProducts(products: ReadableArray): List<Pair<String, Int>> =
         (0 until products.size()).map { index ->
             val entry = products.getMap(index)
                 ?: throw IllegalArgumentException("productOrdered entry $index is not an object")
@@ -66,20 +86,11 @@ object ReadableMapConverter {
                 )
             }
 
-            mapOf("productId" to productId, "quantity" to entry.getDouble("quantity").toInt())
+            productId to entry.getDouble("quantity").toInt()
         }
 
     fun toStringList(array: ReadableArray?): List<String>? {
         if (array == null) return null
         return (0 until array.size()).mapNotNull { array.getString(it) }
     }
-
-    private fun formatNumber(value: Double): String =
-        if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
-
-    private fun jsonOf(map: ReadableMap?): String =
-        map?.toHashMap()?.let { org.json.JSONObject(it).toString() } ?: "null"
-
-    private fun jsonOf(array: ReadableArray?): String =
-        array?.toArrayList()?.let { org.json.JSONArray(it).toString() } ?: "null"
 }
