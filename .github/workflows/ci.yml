@@ -251,6 +251,29 @@ jobs:
         working-directory: HostApp/android
         run: ./gradlew assembleDebug --no-daemon --init-script init.gradle
 
+  # Typechecks the committed example app against the package it consumes, so a
+  # breaking API change fails here rather than in a customer's editor.
+  example-typecheck:
+    name: Example app typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The example resolves the package through `file:..`, and package.json's
+      # `types` points at lib/typescript — which does not exist until the
+      # package is built. Without this the example cannot see its own dependency.
+      - name: Build the package it consumes
+        run: |
+          npm ci
+          npm run build
+      - name: Install and typecheck
+        working-directory: example
+        run: |
+          npm install --no-audit --no-fund
+          npx tsc --noEmit
+
   # The only check that runs the whole stack: JavaScript -> TurboModule ->
   # native SDK -> HTTP -> api.intempt.com, on a booted simulator. Everything
   # else in this workflow stops at a boundary.
@@ -265,19 +288,13 @@ jobs:
   e2e-ios:
     name: E2E (simulator, live API)
     runs-on: macos-15
-    # NON-BLOCKING, and this is a harness defect rather than a lowered bar.
+    # Blocking again as of the Expo example app.
     #
-    # The probe runs on a real simulator and its assertions are the right ones —
-    # it delivered 7 events to api.intempt.com and passed 10/10 on main. What is
-    # broken is how the results are CAPTURED: React Native's console.log does not
-    # reach os_log in a `--dev false` bundle, so both `log stream` (racy) and
-    # `log show` (no race) come back empty. The app launches, the probe runs, and
-    # the harness sees nothing.
-    #
-    # Left running and visible rather than deleted, because the assertions are
-    # worth keeping. Restore `continue-on-error: false` the moment the probe
-    # reports through a channel that survives a production bundle — see issue #6.
-    continue-on-error: true
+    # It was non-blocking while the probe reported through console.log, which
+    # does not reach os_log in a `--dev false` bundle — CI captured nothing while
+    # the app ran perfectly (issue #6). The committed example can depend on
+    # expo-file-system, so it writes a file and the harness reads it with
+    # `simctl get_app_container`. No streaming, no race.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -285,8 +302,11 @@ jobs:
           node-version: 22
       - name: Run the probe app against api.intempt.com
         env:
-          INTEMPT_API_KEY: ${{ secrets.INTEMPT_API_KEY }}
-          INTEMPT_ORG_ID: ${{ secrets.INTEMPT_ORG_ID }}
-          INTEMPT_PROJECT_ID: ${{ secrets.INTEMPT_PROJECT_ID }}
-          INTEMPT_SOURCE_ID: ${{ secrets.INTEMPT_SOURCE_ID }}
+          # EXPO_PUBLIC_ prefix: Expo inlines these at build time, which is how
+          # they reach a release bundle at all.
+          EXPO_PUBLIC_INTEMPT_E2E: '1'
+          EXPO_PUBLIC_INTEMPT_API_KEY: ${{ secrets.INTEMPT_API_KEY }}
+          EXPO_PUBLIC_INTEMPT_ORG_ID: ${{ secrets.INTEMPT_ORG_ID }}
+          EXPO_PUBLIC_INTEMPT_PROJECT_ID: ${{ secrets.INTEMPT_PROJECT_ID }}
+          EXPO_PUBLIC_INTEMPT_SOURCE_ID: ${{ secrets.INTEMPT_SOURCE_ID }}
         run: ./scripts/run-e2e-ios.sh "$RUNNER_TEMP/e2e"

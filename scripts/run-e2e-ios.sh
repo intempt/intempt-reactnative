@@ -1,20 +1,30 @@
 #!/usr/bin/env bash
 #
-# End-to-end: run the bridge on a real iOS simulator against api.intempt.com.
+# End-to-end: run the committed Expo example app on a simulator, against the
+# live API, and read its results from a file.
 #
 # Everything else in this repo stops at a boundary. Unit tests stop at the
-# bridge, the corpus stops at the arguments handed to native, and the compile
-# jobs stop at "it links". This is the only check that runs JavaScript ->
-# TurboModule -> native SDK -> HTTP and asserts the server accepted the event.
+# bridge, the corpus stops at the arguments handed to native, the compile jobs
+# stop at "it links". This runs JavaScript -> TurboModule -> native SDK -> HTTP
+# -> api.intempt.com and asserts the server accepted the events.
 #
-# No UI driver. The probe app prints `E2E|PASS|...` lines and this script reads
-# them out of the simulator log, which avoids a Detox/Maestro dependency for
-# what is fundamentally an assertion about network delivery.
+# WHY THE APP IS COMMITTED RATHER THAN SCAFFOLDED PER RUN
 #
-# Credentials come from the environment (INTEMPT_API_KEY, INTEMPT_ORG_ID,
-# INTEMPT_PROJECT_ID, INTEMPT_SOURCE_ID). When absent the probe SKIPS rather
-# than fails, matching intempt-swift's live contract tests, so a fork without
-# secrets still gets a green suite.
+# The previous harness scaffolded a bare React Native app at CI time and copied
+# a probe into it. That app could not depend on a filesystem module, so the
+# probe's only reporting channel was console.log — and console.log does not
+# reach os_log in a `--dev false` bundle. CI captured nothing while the app ran
+# perfectly. Two strategies were tried, `log stream` and `log show`; both came
+# back empty, and the second ruled out timing and identified the channel.
+#
+# example/ can depend on expo-file-system, so the probe writes a file and this
+# script reads it with `simctl get_app_container` afterwards. No streaming, no
+# race — and the same app is something a developer can open and run by hand,
+# which is what Android's :sample and intempt-swift's IntemptDemo already are.
+#
+# Credentials come from EXPO_PUBLIC_INTEMPT_* in the environment. Absent, the
+# app writes a SKIP result and this exits 0, so a fork without secrets still
+# gets a green suite — matching intempt-swift's live contract tests.
 #
 # Usage: scripts/run-e2e-ios.sh [workdir]
 
@@ -22,75 +32,38 @@ set -euo pipefail
 
 PKG="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="${1:-$(mktemp -d)}"
-APP="HostApp"
 DEVICE_NAME="intempt-e2e"
-# BUNDLE_ID is read from the BUILT app rather than assumed. It was hardcoded to
-# com.hostapp, and the React Native template actually produces
-# org.reactjs.native.example.HostApp — the build succeeded and the launch failed
-# with FBSOpenApplicationServiceErrorDomain code 4, which reads like a simulator
-# problem rather than a wrong identifier.
+BUNDLE_ID="com.intempt.example"
+RESULTS_FILE="intempt-e2e-results.txt"
 
 if [ -d /Applications/Xcode.app ]; then
   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 fi
 
-echo "==> workdir: $WORK"
-mkdir -p "$WORK" && cd "$WORK"
+echo "==> preparing the example app in $WORK"
+mkdir -p "$WORK"
+cp -R "$PKG/example/." "$WORK/"
+cd "$WORK"
 
-if [ ! -d "$APP" ]; then
-  echo "==> scaffolding a bare React Native app"
-  npx --yes @react-native-community/cli@latest init "$APP" \
-    --version 0.81.0 --skip-install --install-pods false --pm npm
-fi
-
-cd "$APP"
-echo "==> installing dependencies"
-npm install
-
-# Install from a PACKED TARBALL, not `npm install <path>`.
-#
-# A path install symlinks, and Metro does not resolve through symlinks without
-# watchFolders — which is how this failed the first time, with "Unable to
-# resolve module intempt-react-native" at the bundle step after pod install had
-# already succeeded.
-#
-# The tarball is also the more honest test: `npm pack` honours the `files`
-# allowlist, so this exercises exactly what a consumer downloads from npm. A
-# file missing from `files` fails here rather than in someone's app.
-echo "==> packing and installing the package as a consumer would get it"
+# The example depends on the package as `file:..`, which points outside this
+# copy. Repoint it at a packed tarball so the app consumes exactly what a
+# consumer downloads from npm — a `main` that pointed at a non-existent file was
+# caught this way once already.
+echo "==> packing the SDK and pointing the example at it"
 TARBALL="$(cd "$PKG" && npm pack --silent --pack-destination "$WORK")"
-npm install "$WORK/$TARBALL"
+node -e "
+  const fs = require('fs');
+  const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  p.dependencies['intempt-react-native'] = 'file:./$TARBALL';
+  fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
+"
 
-echo "==> installing the probe app"
-cp "$PKG/e2e/App.e2e.tsx" App.tsx
-# react-native-config would be another dependency for four strings; the babel
-# transform inlines them at build time instead.
-npm install --save-dev babel-plugin-transform-inline-environment-variables
-cat > babel.config.js <<'BABEL'
-module.exports = {
-  presets: ['module:@react-native/babel-preset'],
-  plugins: [
-    ['transform-inline-environment-variables', {
-      include: [
-        'INTEMPT_API_KEY',
-        'INTEMPT_ORG_ID',
-        'INTEMPT_PROJECT_ID',
-        'INTEMPT_SOURCE_ID',
-      ],
-    }],
-  ],
-};
-BABEL
+echo "==> installing dependencies"
+npm install --no-audit --no-fund
 
-echo "==> pod install"
-cd ios
-# Not on CocoaPods trunk yet; the repository is public so a tagged git
-# reference resolves without credentials. Remove once `pod trunk push` runs.
-if ! grep -q "pod 'Intempt'" Podfile; then
-  printf "\npod 'Intempt', :git => 'https://github.com/intempt/intempt-swift.git', :tag => 'v0.1.0'\n" >> Podfile
-fi
-pod install
-cd ..
+echo "==> expo prebuild (generates the native iOS project)"
+npx expo prebuild --platform ios --clean --no-install
+( cd ios && pod install )
 
 echo "==> preparing a simulator"
 RUNTIME="$(xcrun simctl list runtimes --json | python3 -c "
@@ -104,66 +77,55 @@ xcrun simctl delete "$DEVICE_NAME" >/dev/null 2>&1 || true
 DEVICE_ID="$(xcrun simctl create "$DEVICE_NAME" 'iPhone 16' "$RUNTIME")"
 xcrun simctl boot "$DEVICE_ID"
 xcrun simctl bootstatus "$DEVICE_ID" -b
+trap 'xcrun simctl shutdown "$DEVICE_ID" >/dev/null 2>&1 || true' EXIT
 
-echo "==> building for the simulator"
-cd ios
-xcodebuild -workspace "$APP.xcworkspace" -scheme "$APP" \
-  -configuration Debug -destination "id=$DEVICE_ID" \
-  -derivedDataPath build -quiet build
-cd ..
+SCHEME="$(basename "$(ls -d ios/*.xcworkspace | head -1)" .xcworkspace)"
+echo "==> building $SCHEME"
+(
+  cd ios
+  xcodebuild -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" \
+    -configuration Debug -destination "id=$DEVICE_ID" \
+    -derivedDataPath build -quiet build
+)
 
-APP_PATH="ios/build/Build/Products/Debug-iphonesimulator/$APP.app"
-[ -d "$APP_PATH" ] || { echo "build produced no app at $APP_PATH" >&2; exit 1; }
+APP_PATH="$(find ios/build/Build/Products -maxdepth 3 -name '*.app' | head -1)"
+[ -d "$APP_PATH" ] || { echo "build produced no .app" >&2; exit 1; }
 
 echo "==> bundling JavaScript into the app"
 # Without this the app expects a Metro server on launch and the probe never runs.
-npx react-native bundle --platform ios --dev false \
+npx expo export:embed --platform ios --dev false \
   --entry-file index.js --bundle-output "$APP_PATH/main.jsbundle" \
-  --assets-dest "$APP_PATH"
+  --assets-dest "$APP_PATH" >/dev/null
 
 echo "==> installing and launching"
 xcrun simctl install "$DEVICE_ID" "$APP_PATH"
+xcrun simctl launch "$DEVICE_ID" "$BUNDLE_ID" >/dev/null
 
-BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist")"
-[ -n "$BUNDLE_ID" ] || { echo "could not read CFBundleIdentifier from the built app" >&2; exit 1; }
-echo "    bundle id: $BUNDLE_ID"
-
-LOG="$WORK/e2e.log"
-trap 'xcrun simctl shutdown "$DEVICE_ID" >/dev/null 2>&1 || true' EXIT
-
-xcrun simctl launch "$DEVICE_ID" "$BUNDLE_ID" \
-  INTEMPT_API_KEY="${INTEMPT_API_KEY:-}" \
-  INTEMPT_ORG_ID="${INTEMPT_ORG_ID:-}" \
-  INTEMPT_PROJECT_ID="${INTEMPT_PROJECT_ID:-}" \
-  INTEMPT_SOURCE_ID="${INTEMPT_SOURCE_ID:-}"
-
-echo "==> waiting for the probe to finish"
-# Reads the simulator's PERSISTED log store rather than streaming it.
-#
-# `log stream` has to attach before the probe runs, and the probe runs on mount
-# and finishes in under a second. That race is silent when it loses: the app
-# launches, the probe runs, and the results block comes back completely empty —
-# which is exactly what happened after several clean passes. `log show --last`
-# has no race; it queries what was already written.
-for _ in $(seq 1 45); do
-  xcrun simctl spawn "$DEVICE_ID" log show --last 10m --style compact \
-    --predicate "processImagePath CONTAINS '$APP'" > "$LOG" 2>/dev/null || true
-  grep -q 'E2E|DONE' "$LOG" && break
-  sleep 4
+echo "==> waiting for the results file"
+RESULTS=""
+for _ in $(seq 1 60); do
+  CONTAINER="$(xcrun simctl get_app_container "$DEVICE_ID" "$BUNDLE_ID" data 2>/dev/null || true)"
+  if [ -n "$CONTAINER" ] && [ -f "$CONTAINER/Documents/$RESULTS_FILE" ]; then
+    RESULTS="$(cat "$CONTAINER/Documents/$RESULTS_FILE")"
+    break
+  fi
+  sleep 3
 done
 
 echo
 echo "==================== E2E RESULTS ===================="
-grep -o 'E2E|[^"]*' "$LOG" | sed 's/^/  /' || true
+if [ -n "$RESULTS" ]; then echo "$RESULTS" | sed 's/^/  /'; else echo "  (none)"; fi
 echo "====================================================="
 
-if grep -q 'E2E|SKIP|credentials' "$LOG"; then
+[ -n "$RESULTS" ] || { echo "the app never wrote $RESULTS_FILE" >&2; exit 1; }
+
+if echo "$RESULTS" | grep -q 'E2E|SKIP|credentials'; then
   echo "SKIPPED — no credentials in the environment"
   exit 0
 fi
 
-DONE_LINE="$(grep -o 'E2E|DONE|[0-9]*|[0-9]*' "$LOG" | tail -1 || true)"
-[ -n "$DONE_LINE" ] || { echo "probe never reported DONE — see $LOG" >&2; exit 1; }
+DONE_LINE="$(echo "$RESULTS" | grep -oE 'E2E\|DONE\|[0-9]+\|[0-9]+' | tail -1 || true)"
+[ -n "$DONE_LINE" ] || { echo "no DONE marker in the results" >&2; exit 1; }
 
 PASSED="$(echo "$DONE_LINE" | cut -d'|' -f3)"
 TOTAL="$(echo "$DONE_LINE" | cut -d'|' -f4)"
