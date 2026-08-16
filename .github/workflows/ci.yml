@@ -261,6 +261,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # The example resolves the package through `file:..`, and package.json's
+      # `types` points at lib/typescript — which does not exist until the
+      # package is built. Without this the example cannot see its own dependency.
+      - name: Build the package it consumes
+        run: |
+          npm ci
+          npm run build
       - name: Install and typecheck
         working-directory: example
         run: |

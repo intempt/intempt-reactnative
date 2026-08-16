@@ -30,7 +30,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import { ConsentAction, IntemptError, init } from 'intempt-react-native';
 import type { IntemptInstance } from 'intempt-react-native';
 
@@ -111,7 +111,7 @@ export default function App(): React.JSX.Element {
         ['productView', () => sdk.productView('sku-example')],
         ['productAdd', () => sdk.productAdd('sku-example', 2)],
         ['consent accept', () => sdk.consent(ConsentAction.Accept, Math.floor(Date.now() / 1000) + 86400)],
-        ['flush', () => sdk.flush().then((n) => `${n} delivered`)],
+        ['flush', () => sdk.flush().then((n: number) => `${n} delivered`)],
         ['getProfileId', () => sdk.getProfileId()],
         ['getSessionId', () => sdk.getSessionId()],
         ['optOut', () => sdk.optOut()],
@@ -122,7 +122,9 @@ export default function App(): React.JSX.Element {
           await sdk.autocapture.start();
           return 'started';
         }],
-        ['products', () => sdk.products({ feedId: 'demo-feed', count: 3 }).then((p) => `${p.length} items`)],
+        ['products', () => sdk
+            .products({ feedId: 'demo-feed', count: 3 })
+            .then((p: unknown[]) => `${p.length} items`)],
       ]
     : [];
 
@@ -277,8 +279,11 @@ async function writeResults(lines: Line[], marker: 'DONE' | 'SKIP'): Promise<voi
   console.log(body);
 
   try {
-    const dir = FileSystem.documentDirectory;
-    if (dir) await FileSystem.writeAsStringAsync(`${dir}${RESULTS_FILE}`, body);
+    // expo-file-system 19 removed `documentDirectory` and
+    // `writeAsStringAsync` in favour of File/Paths. The legacy names still
+    // exist under `expo-file-system/legacy`, but new code should not start
+    // there.
+    new File(Paths.document, RESULTS_FILE).write(body);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.log(`E2E|FAIL|write-results|${describe(error)}`);
