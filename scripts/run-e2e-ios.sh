@@ -129,13 +129,7 @@ BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/I
 echo "    bundle id: $BUNDLE_ID"
 
 LOG="$WORK/e2e.log"
-# Streaming starts before launch: the probe runs on mount and would otherwise
-# finish before the stream attached.
-xcrun simctl spawn "$DEVICE_ID" log stream --style compact --level debug \
-  --predicate "processImagePath CONTAINS '$APP'" > "$LOG" 2>&1 &
-LOG_PID=$!
-sleep 3
-trap 'kill $LOG_PID 2>/dev/null || true; xcrun simctl shutdown "$DEVICE_ID" >/dev/null 2>&1 || true' EXIT
+trap 'xcrun simctl shutdown "$DEVICE_ID" >/dev/null 2>&1 || true' EXIT
 
 xcrun simctl launch "$DEVICE_ID" "$BUNDLE_ID" \
   INTEMPT_API_KEY="${INTEMPT_API_KEY:-}" \
@@ -144,9 +138,18 @@ xcrun simctl launch "$DEVICE_ID" "$BUNDLE_ID" \
   INTEMPT_SOURCE_ID="${INTEMPT_SOURCE_ID:-}"
 
 echo "==> waiting for the probe to finish"
-for _ in $(seq 1 90); do
-  grep -q 'E2E|DONE' "$LOG" 2>/dev/null && break
-  sleep 2
+# Reads the simulator's PERSISTED log store rather than streaming it.
+#
+# `log stream` has to attach before the probe runs, and the probe runs on mount
+# and finishes in under a second. That race is silent when it loses: the app
+# launches, the probe runs, and the results block comes back completely empty —
+# which is exactly what happened after several clean passes. `log show --last`
+# has no race; it queries what was already written.
+for _ in $(seq 1 45); do
+  xcrun simctl spawn "$DEVICE_ID" log show --last 10m --style compact \
+    --predicate "processImagePath CONTAINS '$APP'" > "$LOG" 2>/dev/null || true
+  grep -q 'E2E|DONE' "$LOG" && break
+  sleep 4
 done
 
 echo
