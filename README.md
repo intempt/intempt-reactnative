@@ -15,9 +15,9 @@ on iOS and [intempt-android](https://github.com/intempt/intempt-android) on Andr
 | TurboModule spec + codegen config | complete |
 | Contract fixture corpus | complete, 32 fixtures over 29 methods |
 | iOS native module | complete, **typechecked** against `Intempt` 0.1.0 |
-| Android native module | complete, 16 methods reject until `intempt-android` 3.0 |
+| Android native module | complete against `intempt-android` 3.0; 3 push methods reject |
 | iOS distribution | **published** — `Intempt 0.1.0` on CocoaPods trunk |
-| Android distribution | on Maven Central; needs 3.0 for full conformance |
+| Android distribution | **blocked** — needs `intempt-android` 3.0.0 on Maven Central, latest is 2.0.1 |
 
 ## Install
 

@@ -1,5 +1,7 @@
 package com.intempt.reactnative
 
+import android.os.Handler
+import android.os.Looper
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -13,6 +15,7 @@ import com.intempt.core.types.AutocaptureOptions
 import com.intempt.core.types.AutomaticEventsOptions
 import com.intempt.core.types.ConsentAction
 import com.intempt.core.types.IntemptCredentials
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Bridges intempt-android to React Native.
@@ -92,18 +95,33 @@ class IntemptReactNativeModule(
     ) {
         try {
             val credentials = IntemptCredentials(apiKey, orgId, projectId, sourceId)
-            if (!credentials.isValid) {
-                promise.reject(
-                    "missing_configuration",
-                    "apiKey, orgId, projectId and sourceId must all be non-blank",
-                )
+            val problems = credentials.problems()
+            if (problems.isNotEmpty()) {
+                // problems() names the actual failure. The blanks are already
+                // rejected in JS, so the branch that survives to here is almost
+                // always a malformed apiKey ("<id>.<secret>"), which a message
+                // about non-blank fields actively misdirects.
+                promise.reject("missing_configuration", problems.joinToString("; "))
                 return
             }
             // The three-argument overload creates a NAMED instance. The asset file
             // (assets/intempt-config.json) is still supported by the SDK for apps
             // that prefer it, but is no longer the only path — which is what made
             // the SDK wrappable at all.
-            Intempt.initialize(reactContext, credentials, instanceName)
+            //
+            // It returns null on every failure path in Intempt.start(): a blank
+            // instance name, a graph that failed to construct, or a lost init
+            // race. Resolving regardless would hand JS a registry entry whose
+            // every later call rejects `not_initialized` — the same lie as the
+            // unconditional `true` this module used to return.
+            if (Intempt.initialize(reactContext, credentials, instanceName) == null) {
+                promise.reject(
+                    "missing_configuration",
+                    "Intempt.init could not create instance '$instanceName'. " +
+                        "The instance name must be non-blank.",
+                )
+                return
+            }
             promise.resolve(null)
         } catch (e: Exception) {
             promise.reject("unknown", e.message ?: "Intempt.init failed", e)
@@ -120,11 +138,20 @@ class IntemptReactNativeModule(
             promise.resolve(it.track(eventTitle, ReadableMapConverter.toValueMap(data).orEmpty()))
         }
 
+    /**
+     * [eventTitle] is nullable on purpose, and JS must not default it.
+     *
+     * "identify" is in CustomCaptureService.forbiddenEventNames and the check is
+     * case-insensitive, so a default of "Identify" makes isIdentifyValid report
+     * ForbiddenEventName and return false before the event is ever built — every
+     * default identify() would resolve false and queue nothing. The SDK already
+     * names the event itself when this is null.
+     */
     @ReactMethod
     fun identify(
         instanceName: String,
         userId: String,
-        eventTitle: String,
+        eventTitle: String?,
         userAttributes: ReadableMap?,
         data: ReadableMap?,
         promise: Promise,
@@ -139,11 +166,12 @@ class IntemptReactNativeModule(
         )
     }
 
+    /** [eventTitle] nullable for the same reason as [identify]; GroupEvent names itself "Group". */
     @ReactMethod
     fun group(
         instanceName: String,
         accountId: String,
-        eventTitle: String,
+        eventTitle: String?,
         accountAttributes: ReadableMap?,
         promise: Promise,
     ) = withInstance(instanceName, "group", promise) {
@@ -291,13 +319,42 @@ class IntemptReactNativeModule(
     // Delivery
     // ---------------------------------------------------------------------
 
+    /**
+     * The only method here that does not settle synchronously, and so the only
+     * one that can strand its promise.
+     *
+     * The completion is the sole path to resolve, and two SDK paths drop it
+     * without raising: CustomCaptureComponent.flush wraps the call in
+     * UtilsService.withTryCatch, which catches Throwable, logs, and returns
+     * null; and DeliveryMessages.Worker.runMessage discards a FLUSH_QUEUE
+     * message ("Could not restart the delivery worker, dropping") after the
+     * completion is already queued. An unopenable queue DB hits the first. With
+     * no timeout anywhere in the stack, `await intempt.flush()` would then never
+     * resolve and never reject.
+     */
     @ReactMethod
     fun flush(instanceName: String, promise: Promise) =
         withInstance(instanceName, "flush", promise) { instance ->
+            val settled = AtomicBoolean(false)
+            val timeout = Handler(Looper.getMainLooper())
+            val expire = Runnable {
+                if (settled.compareAndSet(false, true)) {
+                    promise.reject(
+                        "flush_timeout",
+                        "Intempt.flush did not report completion within ${FLUSH_TIMEOUT_MS}ms",
+                    )
+                }
+            }
+            timeout.postDelayed(expire, FLUSH_TIMEOUT_MS)
             // The completion carries the number of events the SERVER accepted,
             // which is the only observable difference between queued and
             // delivered.
-            instance.flush { delivered -> promise.resolve(delivered) }
+            instance.flush { delivered ->
+                if (settled.compareAndSet(false, true)) {
+                    timeout.removeCallbacks(expire)
+                    promise.resolve(delivered)
+                }
+            }
         }
 
     @ReactMethod
@@ -449,7 +506,14 @@ class IntemptReactNativeModule(
 
     @ReactMethod
     fun getSdkVersion(promise: Promise) {
-        promise.resolve(com.intempt.core.BuildConfig.sdkVersion)
+        // Guarded because a consumer pinning intemptAndroidVersion back to 2.x
+        // has no BuildConfig.sdkVersion field: the NoSuchFieldError would escape
+        // the @ReactMethod as a native crash rather than a rejected promise.
+        try {
+            promise.resolve(com.intempt.core.BuildConfig.sdkVersion)
+        } catch (e: Throwable) {
+            promise.reject("unknown", e.message ?: "Intempt.getSdkVersion failed", e)
+        }
     }
 
     private fun optBool(map: ReadableMap, key: String, fallback: Boolean): Boolean =
@@ -457,5 +521,8 @@ class IntemptReactNativeModule(
 
     companion object {
         const val NAME = "IntemptReactNative"
+
+        /** Long enough for a slow network round trip, short enough to surface a stuck queue. */
+        private const val FLUSH_TIMEOUT_MS = 30_000L
     }
 }

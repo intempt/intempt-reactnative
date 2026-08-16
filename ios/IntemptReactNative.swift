@@ -137,41 +137,62 @@ public class IntemptReactNative: NSObject {
         }
     }
 
+    /// `eventTitle` is optional because Android reserves the name "identify"
+    /// and rejects it case-insensitively, so JS can no longer send a default.
+    /// The two SDKs disagree here — intempt-swift *defaults* to "Identify" and
+    /// has no forbidden-name guard — so nil falls through to each platform's
+    /// own default rather than being normalised in the bridge.
     @objc
     func identify(
         _ instanceName: String,
         userId: String,
-        eventTitle: String,
+        eventTitle: String?,
         userAttributes: [String: Any]?,
         data: [String: Any]?,
         resolver resolve: @escaping RCTPromiseResolveBlock,
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
         withInstance(instanceName, "identify", reject) { instance in
-            resolve(
-                instance.identify(
-                    userId: userId,
-                    eventTitle: eventTitle,
-                    userAttributes: TypeBridge.properties(userAttributes),
-                    data: TypeBridge.properties(data)))
+            if let eventTitle {
+                resolve(
+                    instance.identify(
+                        userId: userId,
+                        eventTitle: eventTitle,
+                        userAttributes: TypeBridge.properties(userAttributes),
+                        data: TypeBridge.properties(data)))
+            } else {
+                resolve(
+                    instance.identify(
+                        userId: userId,
+                        userAttributes: TypeBridge.properties(userAttributes),
+                        data: TypeBridge.properties(data)))
+            }
         }
     }
 
+    /// Optional for the same reason as `identify`.
     @objc
     func group(
         _ instanceName: String,
         accountId: String,
-        eventTitle: String,
+        eventTitle: String?,
         accountAttributes: [String: Any]?,
         resolver resolve: @escaping RCTPromiseResolveBlock,
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
         withInstance(instanceName, "group", reject) { instance in
-            resolve(
-                instance.group(
-                    accountId: accountId,
-                    eventTitle: eventTitle,
-                    accountAttributes: TypeBridge.properties(accountAttributes)))
+            if let eventTitle {
+                resolve(
+                    instance.group(
+                        accountId: accountId,
+                        eventTitle: eventTitle,
+                        accountAttributes: TypeBridge.properties(accountAttributes)))
+            } else {
+                resolve(
+                    instance.group(
+                        accountId: accountId,
+                        accountAttributes: TypeBridge.properties(accountAttributes)))
+            }
         }
     }
 
