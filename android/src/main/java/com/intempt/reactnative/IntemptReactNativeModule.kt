@@ -419,7 +419,7 @@ class IntemptReactNativeModule(
     @ReactMethod
     fun isAutocaptureRunning(instanceName: String, promise: Promise) =
         withInstance(instanceName, "autocapture.isRunning", promise) {
-            promise.resolve(it.autocapture.isRunning())
+            promise.resolve(it.autocapture.isRunning)
         }
 
     // ---------------------------------------------------------------------

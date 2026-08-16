@@ -4,6 +4,7 @@ import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.ReadableType
 import com.intempt.core.types.IntemptValue
+import com.intempt.core.types.Product
 
 /**
  * Converts React Native's bridge types into what intempt-android 3.0 accepts.
@@ -72,7 +73,7 @@ object ReadableMapConverter {
      * an order is a revenue number that is quietly wrong, which is worse than a
      * loud failure.
      */
-    fun toOrderedProducts(products: ReadableArray): List<Pair<String, Int>> =
+    fun toOrderedProducts(products: ReadableArray): List<Product> =
         (0 until products.size()).map { index ->
             val entry = products.getMap(index)
                 ?: throw IllegalArgumentException("productOrdered entry $index is not an object")
@@ -86,7 +87,7 @@ object ReadableMapConverter {
                 )
             }
 
-            productId to entry.getDouble("quantity").toInt()
+            Product(productId, entry.getDouble("quantity").toInt())
         }
 
     fun toStringList(array: ReadableArray?): List<String>? {
