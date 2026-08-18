@@ -64,7 +64,7 @@ function encodeValue(value: IntemptValue): unknown {
     return value.map(encodeValue);
   }
   if (value !== null && typeof value === 'object') {
-    return encodeProperties(value as IntemptProperties);
+    return encodeProperties(value);
   }
   return value;
 }

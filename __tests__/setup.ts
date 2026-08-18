@@ -100,6 +100,10 @@ jest.mock('../src/NativeIntempt', () => {
         (...args: unknown[]) => {
           mockNativeCalls.push({ fn: name, args });
           if (name in mockNativeRejections) {
+            // Real native bridge rejections are plain {code, message, userInfo}
+            // objects, not JS Error instances — this mock stays faithful to
+            // that shape rather than wrapping it in an Error.
+            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             return Promise.reject(mockNativeRejections[name]);
           }
           if (name in mockNativeReturns) {
