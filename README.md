@@ -1,11 +1,11 @@
-# intempt-react-native
+# @intempt-technologies/react-native
 
 Intempt SDK for React Native. Wraps [intempt-swift](https://github.com/intempt/intempt-swift)
 on iOS and [intempt-android](https://github.com/intempt/intempt-android) on Android.
 
-> **Not yet releasable.** One native prerequisite is outstanding — see
+> **Not yet published to npm.** Both native prerequisites are satisfied — see
 > [Status](#status). The JavaScript layer, the bridge contract and the test suite are
-> complete and reviewable now.
+> complete and reviewable now; publishing this package is the one remaining step.
 
 ## Status
 
@@ -17,12 +17,13 @@ on iOS and [intempt-android](https://github.com/intempt/intempt-android) on Andr
 | iOS native module | complete, **typechecked** against `Intempt` 0.1.0 |
 | Android native module | complete against `intempt-android` 3.0; 3 push methods reject |
 | iOS distribution | **published** — `Intempt 0.1.0` on CocoaPods trunk |
-| Android distribution | **blocked** — needs `intempt-android` 3.0.0 on Maven Central, latest is 2.0.1 |
+| Android distribution | **published** — `intempt-android` 3.0.1 on Maven Central |
+| npm distribution | **not yet published** — release workflow ready, no tag cut yet |
 
 ## Install
 
 ```sh
-npm install intempt-react-native
+npm install @intempt-technologies/react-native
 ```
 
 ```sh
@@ -36,7 +37,7 @@ No JavaScript dependencies. Everything this package needs is generated natively.
 ## Quick start
 
 ```ts
-import { init } from 'intempt-react-native';
+import { init } from '@intempt-technologies/react-native';
 
 const intempt = await init({
   apiKey: 'yourPrefix.yourSecret',

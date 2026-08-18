@@ -59,10 +59,7 @@ dependencies {
   // PREREQUISITE. 2.0.1 is live on Maven Central but unusable: it declares
   // minSdk 31, which is above React Native's floor, and ships
   // kotlinx-serialization as `implementation`, so recommendation() does not
-  // compile for a consumer. 3.0.0 carries the contract conformance and drops
-  // minSdk to 23.
-  //
-  // Overridable so CI can build against a locally-published 3.0.0-LOCAL before
-  // 3.0.0 exists on Maven Central. Drop the override once it is published.
-  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '3.0.0'}"
+  // compile for a consumer. 3.0.1 carries the contract conformance and drops
+  // minSdk to 23, and is published on Maven Central.
+  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '3.0.1'}"
 }

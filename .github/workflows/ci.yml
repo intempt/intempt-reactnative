@@ -53,6 +53,18 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
 
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
   unit:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -166,11 +178,8 @@ jobs:
   # which is correct. Building it standalone would have tested a shape no
   # integrator ever uses.
   #
-  # PINNED TO A LOCAL BUILD ON PURPOSE. intempt-android 3.0.0 is not on Maven
-  # Central — 2.0.1 is latest and is unusable (minSdk 31, kotlinx-serialization
-  # scoped as `implementation`). Publishing the SDK into the runner's ~/.m2 is
-  # what makes this job possible before 3.0 ships. Once it publishes: drop the
-  # publish step, drop mavenLocal, drop -PintemptAndroidVersion.
+  # intempt-android 3.0.1 is published on Maven Central (2026-08-16), so this
+  # resolves it for real — no local publish/mavenLocal workaround needed.
   android-build:
     name: Android build (bare RN host app)
     runs-on: ubuntu-latest
@@ -178,11 +187,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: intempt-react-native
-      - uses: actions/checkout@v4
-        with:
-          repository: intempt/intempt-android
-          ref: feature/inherit-mixpanel-substrate
-          path: intempt-android
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -190,14 +194,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - name: Publish the SDK to the runner's local Maven repo
-        working-directory: intempt-android
-        run: ./gradlew publishToMavenLocal -PVERSION=3.0.0-LOCAL -PSKIP_SIGNING=true --no-daemon
-      - name: Confirm the artifact actually landed in ~/.m2
-        run: |
-          # Distinguishes "publish failed" from "published but unresolvable".
-          # Without this, both look identical at the build step.
-          ls -la ~/.m2/repository/com/intempt/sdk/intempt-android/3.0.0-LOCAL/
       - name: Scaffold a bare React Native app
         run: |
           npx --yes @react-native-community/cli@latest init HostApp \
@@ -207,49 +203,9 @@ jobs:
         run: |
           npm install
           npm install ../intempt-react-native
-      - name: Point the app at the locally-published SDK
-        working-directory: HostApp/android
-        run: |
-          # The RN 0.81 template's settings.gradle has NO repositories block —
-          # com.facebook.react.settings owns dependency resolution, so editing
-          # settings.gradle or adding allprojects{repositories} does nothing.
-          # An init script is the one place that can inject a repository
-          # regardless of how the build configures resolution — and it has to
-          # hook settingsEvaluated, not beforeSettings: the React Native
-          # settings plugin configures dependencyResolutionManagement itself,
-          # so anything added before it is applied gets replaced.
-          #
-          # google() and mavenCentral() are repeated deliberately. An earlier
-          # version set repositoriesMode to PREFER_SETTINGS, which left
-          # mavenLocal as the ONLY repository and broke React Native's own
-          # included gradle-plugin build — it could not resolve kotlin-stdlib
-          # or gson. Add repositories; never narrow them.
-          cat > init.gradle <<'INIT'
-          settingsEvaluated { settings ->
-            settings.dependencyResolutionManagement {
-              repositories {
-                mavenLocal()
-                google()
-                mavenCentral()
-              }
-            }
-          }
-          // Settings repositories alone are not enough. Resolution runs in
-          // PREFER_PROJECT mode and React Native's plugin adds project-level
-          // repositories to library modules (its own node_modules maven dir),
-          // so any project with project repos never consults the settings set.
-          // Adding mavenLocal per project is what actually makes 3.0.0-LOCAL
-          // resolvable. Diagnosed from CI, printing the repository sets.
-          projectsLoaded { gradle ->
-            gradle.allprojects { p ->
-              p.repositories { mavenLocal() }
-            }
-          }
-          INIT
-          echo "intemptAndroidVersion=3.0.0-LOCAL" >> gradle.properties
       - name: Build
         working-directory: HostApp/android
-        run: ./gradlew assembleDebug --no-daemon --init-script init.gradle
+        run: ./gradlew assembleDebug --no-daemon
 
   # Typechecks the committed example app against the package it consumes, so a
   # breaking API change fails here rather than in a customer's editor.

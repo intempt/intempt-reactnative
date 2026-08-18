@@ -1,0 +1,59 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # OIDC trusted publishing (npm) -- no NPM_TOKEN secret needed. npm's
+  # bypass-2FA-token deprecation means a granular access token can no longer
+  # skip a live OTP on publish, which CI obviously can't provide. Trusted
+  # publishing sidesteps that: no static secret, so there's nothing to
+  # "bypass". Same pattern as intempt/cli's mcp-publish.yml. Register on npm
+  # once, on the @intempt-technologies org, before the first tag push: GitHub
+  # Actions, repo intempt/intempt-reactnative, workflow release.yml.
+  id-token: write
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs a recent npm CLI (OIDC support landed in npm
+      # 11.5+); the version bundled with setup-node's node-version: 22
+      # predates that.
+      - run: npm install -g npm@latest
+      - run: npm --version
+
+      - run: npm ci
+
+      # A tag/version mismatch would silently publish the wrong number --
+      # this repo has no separate version-bump automation, so the tag is the
+      # only thing asserting "this is the release the maintainer meant."
+      - name: Check tag matches package.json version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Tag v$TAG_VERSION does not match package.json version $PKG_VERSION" >&2
+            exit 1
+          fi
+
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run mutation
+      - run: npm run check:pack
+      - run: npm run build
+      - run: npm publish --access public

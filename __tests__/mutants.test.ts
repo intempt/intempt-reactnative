@@ -365,7 +365,8 @@ describe('every method labels its own errors', () => {
     // Guards the table itself. A method added to the bridge without an entry
     // here would otherwise leave its label unasserted, which is how the
     // original 25 got in.
-    const corpus = require('./fixtures/contract-methods.json');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- trusted local fixture, not a runtime module boundary
+    const corpus = require('./fixtures/contract-methods.json') as { methods: Record<string, unknown> };
     const bridged = Object.keys(corpus.methods);
     const labelled = CASES.map(([l]) => l);
     // initialize is exercised separately — it is not an instance method.
