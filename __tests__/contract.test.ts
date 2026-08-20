@@ -106,7 +106,7 @@ describe('corpus completeness', () => {
     const excluded = new Set(Object.keys(corpus.excludedFromBridge));
 
     // The spec's own key list, taken from the recorder the setup installs.
-    const specMethods = Object.keys(NativeIntempt).filter(
+    const specMethods = Object.keys(NativeIntempt ?? {}).filter(
       (name) => !NON_INSTANCE_METHODS.has(name) && !excluded.has(name)
     );
 

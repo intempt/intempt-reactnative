@@ -34,6 +34,32 @@ No JavaScript dependencies. Everything this package needs is generated natively.
 
 **Requirements:** React Native 0.76+, iOS 15.1+, Android API 24+.
 
+## Where this SDK runs — and where it does not
+
+This SDK is **mobile-only**: Android and iOS devices, simulators and emulators. It is a
+wrapper over the native Intempt SDKs, so it works exactly where they do and nowhere else.
+
+- **No web.** react-native-web has no native module. On any platform without one, importing
+  the SDK is safe, but `init()` (and every other call) rejects with an `IntemptError` whose
+  `isUnsupported` is true — catch it and fall back to
+  [intemptjs](https://github.com/intempt/intempt-js). A cross-platform app should split at
+  bundle time (`analytics.native.ts` / `analytics.web.ts`); a runtime `Platform.OS` check is
+  too late for web bundlers that cannot resolve the native import.
+- **No desktop.** react-native-windows / react-native-macos are not supported — same
+  `isUnsupported` rejection as web.
+- **No servers.** Backend tracking belongs to the
+  [Node.js SDK](https://github.com/intempt/intempt-node) (or PHP/Python), with server
+  credentials — never this package.
+- **No Expo Go.** Native modules require a dev build: `npx expo prebuild`, then
+  `expo run:android` / `expo run:ios`.
+- **Production only.** The delivery endpoint (`https://api.intempt.com`) is compiled into the
+  native SDKs and is not configurable. Credentials from a non-production environment will
+  queue events locally and deliver nothing.
+- **Platform gaps are errors, not crashes.** A method the current platform's native SDK does
+  not implement (for example push methods on Android before `intempt-android` covers them)
+  rejects with `isUnsupported` — the same shape as the wrong-platform case, so one branch
+  handles both.
+
 ## Quick start
 
 ```ts
