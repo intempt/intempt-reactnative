@@ -54,6 +54,9 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run mutation
-      - run: npm run check:pack
       - run: npm run build
+      # After build, not before: check-pack verifies the lib/ entry points the
+      # pack would ship, and lib/ only exists once build has run. The v0.1.0
+      # release attempt failed exactly here, on a runner with no lib/.
+      - run: npm run check:pack
       - run: npm publish --access public
