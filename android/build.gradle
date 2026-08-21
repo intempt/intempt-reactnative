@@ -60,9 +60,10 @@ dependencies {
   // minSdk 31, which is above React Native's floor, and ships
   // kotlinx-serialization as `implementation`, so recommendation() does not
   // compile for a consumer. 3.0.1 carries the contract conformance and drops
-  // minSdk to 23, and is published on Maven Central. 3.0.3 makes reset()'s
-  // identity rotation synchronous — before it, getProfileId() read immediately
-  // after reset() raced the wipe and returned the previous user's id, which is
-  // exactly what this bridge's e2e probe asserts against.
-  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '3.0.3'}"
+  // minSdk to 23, and is published on Maven Central. 3.0.4 makes identity reads
+  // reliable: profileId is minted before initialize() returns, storage reads fall
+  // through to SharedPreferences, and writes are visible to an immediate read-back
+  // — the guarantees this bridge's e2e probe asserts (empty-identity-after-init
+  // was an intermittent cold-device failure on 3.0.2/3.0.3).
+  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '3.0.4'}"
 }
