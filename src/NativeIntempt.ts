@@ -123,4 +123,10 @@ export interface Spec extends TurboModule {
   getSdkVersion(): Promise<string>;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>('IntemptReactNative');
+// `get`, not `getEnforcing`: on a platform with no native module (react-native-web,
+// react-native-windows/macos, anything that isn't Android or iOS) `getEnforcing` throws at
+// IMPORT time — before init() runs, before the app can catch anything at a sensible boundary.
+// Platform absence is not an exceptional state for a mobile-only SDK; it must surface the same
+// way a method-level gap does: as a catchable `IntemptError` with `isUnsupported`, raised from
+// the call site. `index.ts` owns that translation.
+export default TurboModuleRegistry.get<Spec>('IntemptReactNative');

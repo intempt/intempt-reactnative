@@ -38,6 +38,8 @@ export enum IntemptErrorCode {
   UnsupportedOnAndroid = 'unsupported_on_android',
   /** Method exists in the contract but not yet on iOS. */
   UnsupportedOnIos = 'unsupported_on_ios',
+  /** The native module does not exist on this platform (web, desktop). */
+  UnsupportedPlatform = 'unsupported_platform',
   /** A method was called before `init()`. */
   NotInitialized = 'not_initialized',
   /** Native rejected with a code this version does not recognise. */
@@ -95,7 +97,8 @@ export class IntemptError extends Error {
   get isUnsupported(): boolean {
     return (
       this.code === IntemptErrorCode.UnsupportedOnAndroid ||
-      this.code === IntemptErrorCode.UnsupportedOnIos
+      this.code === IntemptErrorCode.UnsupportedOnIos ||
+      this.code === IntemptErrorCode.UnsupportedPlatform
     );
   }
 }

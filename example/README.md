@@ -15,6 +15,12 @@ npx expo prebuild        # generates ios/ and android/, not committed
 npm run ios              # or: npm run android
 ```
 
+The app consumes the SDK as `file:..` — npm installs it as a symlink to the repository
+root, and `metro.config.js` makes Metro follow it (watch the workspace root, resolve
+`intempt-react-native` there, and block the root's own react/react-native copies so the
+bundle carries exactly one React). Edits to `src/` are picked up on reload with no
+pack-and-reinstall step.
+
 Credentials come from the environment, inlined by Expo at build time:
 
 ```sh

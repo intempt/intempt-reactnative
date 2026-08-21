@@ -10,7 +10,8 @@
  * identity all live natively.
  */
 
-import NativeIntempt from './NativeIntempt';
+import NativeIntemptOrNull from './NativeIntempt';
+import type { Spec } from './NativeIntempt';
 import { IntemptError, IntemptErrorCode, fromNativeRejection } from './errors';
 import {
   ConsentAction,
@@ -45,6 +46,34 @@ export type {
 };
 
 const DEFAULT_INSTANCE = 'default';
+
+/**
+ * The native module, or a stand-in that rejects every call.
+ *
+ * On Android and iOS the TurboModule exists and this is a plain pass-through.
+ * Anywhere else — react-native-web, react-native-windows/macos — the module is
+ * null, and every method (including `initialize`) rejects with
+ * `UnsupportedPlatform`, whose `isUnsupported` is true. That turns "wrong
+ * platform" from a crash at import time into the same catchable shape as a
+ * method-level platform gap: `init()` rejects, the app keeps running, and the
+ * caller can branch on `error.isUnsupported` to fall back to another SDK.
+ */
+const NativeIntempt: Spec =
+  NativeIntemptOrNull ??
+  new Proxy({} as Spec, {
+    get(_target, prop) {
+      return (): Promise<never> =>
+        Promise.reject(
+          new IntemptError(
+            IntemptErrorCode.UnsupportedPlatform,
+            'The Intempt native module is not available on this platform. ' +
+              'This SDK supports Android and iOS only; for web use intemptjs, ' +
+              'for servers use the Node.js SDK.',
+            { method: String(prop) }
+          )
+        );
+    },
+  });
 
 /**
  * Prepares a value for the bridge.
