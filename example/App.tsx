@@ -186,7 +186,9 @@ async function runProbe(
 
   await check('identity is minted natively', async () => {
     const [profileId, sessionId] = await Promise.all([sdk.getProfileId(), sdk.getSessionId()]);
-    if (!profileId || !sessionId) throw new Error('empty identity');
+    if (!profileId || !sessionId) {
+      throw new Error(`empty identity (profile="${profileId}", session="${sessionId}")`);
+    }
     return `profile=${profileId.slice(0, 12)}`;
   });
 
@@ -205,6 +207,20 @@ async function runProbe(
   await check('identify', async () => {
     if (!(await sdk.identify(`rn-e2e-${stamp}`, { userAttributes: { email: `rn-${stamp}@example.com` } }))) {
       throw new Error('identify() returned false');
+    }
+    return 'queued';
+  });
+
+  await check('group', async () => {
+    if (!(await sdk.group(`rn-acct-${stamp}`, { accountAttributes: { tier: 'e2e' } }))) {
+      throw new Error('group() returned false');
+    }
+    return 'queued';
+  });
+
+  await check('alias', async () => {
+    if (!(await sdk.alias(`rn-e2e-${stamp}`, `rn-e2e-alias-${stamp}`))) {
+      throw new Error('alias() returned false');
     }
     return 'queued';
   });
