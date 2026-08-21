@@ -17,7 +17,7 @@ on iOS and [intempt-android](https://github.com/intempt/intempt-android) on Andr
 | iOS native module | complete, **typechecked** against `Intempt` 0.1.0 |
 | Android native module | complete against `intempt-android` 3.0; 3 push methods reject |
 | iOS distribution | **published** — `Intempt 0.1.0` on CocoaPods trunk |
-| Android distribution | **published** — `intempt-android` 3.0.1 on Maven Central |
+| Android distribution | **published** — `intempt-android` 3.0.3 on Maven Central |
 | npm distribution | **not yet published** — release workflow ready, no tag cut yet |
 
 ## Install
