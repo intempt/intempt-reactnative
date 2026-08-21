@@ -1,6 +1,6 @@
 {
   "name": "@intempt-technologies/react-native",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Intempt SDK for React Native — event tracking, identity, consent and personalization",
   "main": "lib/commonjs/index.js",
   "module": "lib/module/index.js",
