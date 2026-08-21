@@ -31,7 +31,11 @@ try {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
   });
-  listed = new Set(JSON.parse(out)[0].files.map((f) => f.path));
+  // npm <=11 emits an array of results; npm 12 emits an object keyed by
+  // package name. The release runner installs npm@latest, so handle both.
+  const parsed = JSON.parse(out);
+  const result = Array.isArray(parsed) ? parsed[0] : parsed[pkg.name];
+  listed = new Set(result.files.map((f) => f.path));
 } catch (error) {
   console.error('could not run `npm pack --dry-run`:', error.message);
   process.exit(1);
