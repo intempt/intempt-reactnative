@@ -125,6 +125,26 @@ export default function App(): React.JSX.Element {
         ['products', () => sdk
             .products({ feedId: 'demo-feed', count: 3 })
             .then((p: unknown[]) => `${p.length} items`)],
+
+        // Flags. Ask for a KEY — whether it names an experiment, a personalization or a flag is
+        // the platform's business, and these calls do not change when that does.
+        //
+        // The default is not optional and it is a real decision: it is what renders when Intempt
+        // cannot be reached. Choose the behaviour you already have.
+        ['variation', () => sdk
+            .boolVariation('new_checkout', { userId: 'user-123' }, false)
+            .then((on: boolean) => `new_checkout = ${on}`)],
+
+        // The reason separates a deliberate holdout from an outage. Without it both are the same
+        // absent value and you cannot tell a rollout decision from a failure.
+        ['variationDetail', () => sdk
+            .variationDetail('pricing_cta', { userId: 'user-123' }, 'Get started')
+            .then((d: { value: unknown; reason: string; variant?: string }) =>
+              `${d.value} (reason=${d.reason}, variant=${d.variant ?? 'none'})`)],
+
+        ['allFlags', () => sdk
+            .allFlags({ userId: 'user-123' })
+            .then((f: Record<string, unknown>) => `${Object.keys(f).length} key(s)`)],
       ]
     : [];
 
