@@ -29,7 +29,13 @@ Pod::Spec.new do |s|
   #
   # Published to CocoaPods trunk on 2026-08-16, so this resolves with a plain
   # `pod install` and the consumer's Podfile needs no :git line.
-  s.dependency 'Intempt', '0.1.0'
+  # '~> 0.1' rather than an exact '0.1.0'.
+  #
+  # CI resolves this pod from the intempt-swift BRANCH while the flag surface is
+  # unreleased, and that branch's own podspec declares 0.1.1 — an exact pin here made
+  # CocoaPods refuse it outright: 'could not find compatible versions for pod Intempt'.
+  # A patch-range pin accepts both, and still refuses a breaking major.
+  s.dependency 'Intempt', '~> 0.1'
 
   # install_modules_dependencies wires React-Core, and on the new architecture
   # also ReactCommon, RCT-Folly, glog and the generated spec. Available in
