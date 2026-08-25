@@ -259,27 +259,18 @@ jobs:
       - name: Build
         working-directory: HostApp/android
         run: |
-          # Inject mavenLocal through a Gradle INIT SCRIPT rather than editing the app.
+          # Inject mavenLocal with an EXPLICIT -I, not by dropping a file in init.d.
           #
-          # An earlier version sed'd settings.gradle for mavenCentral() and its guard fired:
-          # RN 0.81 declares no repositories there at all, and the only ones in build.gradle
-          # are inside buildscript {}, which governs the classpath, not app dependencies.
-          # Repositories arrive via the com.facebook.react.settings plugin.
+          # init.d discovery depends on GRADLE_USER_HOME, which this job never sets — so the
+          # previous version wrote a script Gradle never read, and the build silently resolved
+          # intempt-android 3.0.4 from mavenCentral and failed on the symbols that release
+          # lacks. -I takes a path and cannot miss.
           #
-          # settingsEvaluated hooks dependencyResolutionManagement after the settings file
-          # is read but before projects configure, so it works whatever the app declares and
-          # cannot collide with FAIL_ON_PROJECT_REPOS the way an allprojects block would.
-          mkdir -p ~/.gradle/init.d
-          cat > ~/.gradle/init.d/intempt-maven-local.gradle <<'EOF'
+          # mavenLocal must be FIRST, not merely present: Gradle resolves repositories IN
+          # ORDER, and mavenCentral publishes 3.0.4. There is no addFirst on the container,
+          # so drain and re-add.
+          cat > /tmp/intempt-maven-local.gradle <<'EOF'
           settingsEvaluated { settings ->
-              // mavenLocal must be FIRST, not merely present.
-              //
-              // The previous version appended it, and Gradle resolves repositories IN ORDER:
-              // mavenCentral already publishes intempt-android 3.0.4, so it answered first and
-              // the build compiled against the release that lacks FlagContext — the exact
-              // failure this step exists to prevent, with the step reporting success.
-              //
-              // There is no addFirst on the repository container, so drain and re-add.
               def repos = settings.dependencyResolutionManagement.repositories
               def existing = repos.toList()
               repos.clear()
@@ -287,7 +278,12 @@ jobs:
               existing.each { repos.add(it) }
           }
           EOF
-          ./gradlew assembleDebug --no-daemon
+          # Prove the artifact we just published is the one that resolves. Without this the
+          # job can silently compile against the release and only fail later, in a message
+          # that looks like a bridge defect rather than a resolution one.
+          test -f ~/.m2/repository/com/intempt/sdk/intempt-android/3.0.4/intempt-android-3.0.4.aar \
+            || { echo "intempt-android was not published to ~/.m2"; exit 1; }
+          ./gradlew assembleDebug --no-daemon -I /tmp/intempt-maven-local.gradle
 
   # Typechecks the committed example app against the package it consumes, so a
   # breaking API change fails here rather than in a customer's editor.
