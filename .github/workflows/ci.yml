@@ -266,15 +266,25 @@ jobs:
           # are inside buildscript {}, which governs the classpath, not app dependencies.
           # Repositories arrive via the com.facebook.react.settings plugin.
           #
-          # beforeSettings hooks dependencyResolutionManagement before the project is
-          # configured, so it works whatever the app declares and cannot collide with
-          # FAIL_ON_PROJECT_REPOS the way an allprojects block would.
+          # settingsEvaluated hooks dependencyResolutionManagement after the settings file
+          # is read but before projects configure, so it works whatever the app declares and
+          # cannot collide with FAIL_ON_PROJECT_REPOS the way an allprojects block would.
           mkdir -p ~/.gradle/init.d
           cat > ~/.gradle/init.d/intempt-maven-local.gradle <<'EOF'
-          beforeSettings { settings ->
-              settings.dependencyResolutionManagement {
-                  repositories { mavenLocal() }
-              }
+          settingsEvaluated { settings ->
+              // mavenLocal must be FIRST, not merely present.
+              //
+              // The previous version appended it, and Gradle resolves repositories IN ORDER:
+              // mavenCentral already publishes intempt-android 3.0.4, so it answered first and
+              // the build compiled against the release that lacks FlagContext — the exact
+              // failure this step exists to prevent, with the step reporting success.
+              //
+              // There is no addFirst on the repository container, so drain and re-add.
+              def repos = settings.dependencyResolutionManagement.repositories
+              def existing = repos.toList()
+              repos.clear()
+              repos.mavenLocal()
+              existing.each { repos.add(it) }
           }
           EOF
           ./gradlew assembleDebug --no-daemon
