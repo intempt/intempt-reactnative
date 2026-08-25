@@ -259,12 +259,24 @@ jobs:
       - name: Build
         working-directory: HostApp/android
         run: |
-          # The scaffolded app does not register mavenLocal. This bridge module
-          # deliberately declares no repositories block of its own — see the comment in
-          # android/build.gradle — precisely so the consuming APP decides where its
-          # dependencies come from. So the app is where it has to be added.
-          sed -i.bak 's/mavenCentral()/mavenLocal()\n        mavenCentral()/' settings.gradle
-          grep -q mavenLocal settings.gradle || { echo "mavenLocal not injected"; exit 1; }
+          # Inject mavenLocal through a Gradle INIT SCRIPT rather than editing the app.
+          #
+          # An earlier version sed'd settings.gradle for mavenCentral() and its guard fired:
+          # RN 0.81 declares no repositories there at all, and the only ones in build.gradle
+          # are inside buildscript {}, which governs the classpath, not app dependencies.
+          # Repositories arrive via the com.facebook.react.settings plugin.
+          #
+          # beforeSettings hooks dependencyResolutionManagement before the project is
+          # configured, so it works whatever the app declares and cannot collide with
+          # FAIL_ON_PROJECT_REPOS the way an allprojects block would.
+          mkdir -p ~/.gradle/init.d
+          cat > ~/.gradle/init.d/intempt-maven-local.gradle <<'EOF'
+          beforeSettings { settings ->
+              settings.dependencyResolutionManagement {
+                  repositories { mavenLocal() }
+              }
+          }
+          EOF
           ./gradlew assembleDebug --no-daemon
 
   # Typechecks the committed example app against the package it consumes, so a
