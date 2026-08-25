@@ -5,6 +5,19 @@ on:
     branches: [main]
   pull_request:
 
+# The native SDK refs this bridge compiles against.
+#
+# The published intempt-swift v0.1.0 and intempt-android 3.0.4 both PREDATE the flag
+# surface: this bridge calls FlagContext, variationDetail and allFlags, and none of
+# the three exists in either release. Compiling the bridge against a release that
+# lacks the API it calls tests nothing — it only reports that the release is old.
+#
+# Move both back to a tag/version the moment each SDK publishes one containing the
+# flag surface. Every native job reads these two lines.
+env:
+  INTEMPT_SWIFT_REF: feature/experiences-flags
+  INTEMPT_ANDROID_REF: feature/experiences-flags
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -135,11 +148,11 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Check out intempt-swift at the pinned tag
+      - name: Check out intempt-swift at the ref this bridge is built against
         uses: actions/checkout@v4
         with:
           repository: intempt/intempt-swift
-          ref: v0.1.0
+          ref: ${{ env.INTEMPT_SWIFT_REF }}
           path: intempt-swift
       - name: Typecheck the bridge
         run: ./scripts/typecheck-ios.sh "$GITHUB_WORKSPACE/intempt-swift"
@@ -176,7 +189,7 @@ jobs:
           # Not on CocoaPods trunk yet; the repository is public so a tagged
           # git reference resolves without credentials. Remove this once
           # `pod trunk push` has run — see issue #2.
-          printf "\npod 'Intempt', :git => 'https://github.com/intempt/intempt-swift.git', :tag => 'v0.1.0'\n" \
+          printf "\npod 'Intempt', :git => 'https://github.com/intempt/intempt-swift.git', :branch => '${INTEMPT_SWIFT_REF}'\n" \
             >> Podfile
           pod install
       - name: Compile
@@ -211,6 +224,29 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      # Build intempt-android from source into the local Maven repo.
+      #
+      # android/build.gradle resolves com.intempt.sdk:intempt-android:3.0.4, and the
+      # PUBLISHED 3.0.4 predates the flag surface — no FlagContext, no variationDetail,
+      # no allFlags, which is exactly what this bridge calls. The published artifact
+      # cannot compile the code under test, so its failure says nothing about the bridge.
+      #
+      # The branch publishes the SAME coordinates (GROUP / ARTIFACT_ID / VERSION in its
+      # gradle.properties are unchanged), so mavenLocal simply shadows it. This package's
+      # own version pin does not move, and a customer installing today still resolves the
+      # published SDK.
+      #
+      # Delete this once intempt-android publishes a release with the flag surface, and
+      # bump intemptAndroidVersion to it.
+      - name: Check out intempt-android
+        uses: actions/checkout@v4
+        with:
+          repository: intempt/intempt-android
+          ref: ${{ env.INTEMPT_ANDROID_REF }}
+          path: intempt-android
+      - name: Publish it to mavenLocal
+        working-directory: intempt-android
+        run: ./gradlew :app:publishToMavenLocal -PSKIP_SIGNING=true --no-daemon
       - name: Scaffold a bare React Native app
         run: |
           npx --yes @react-native-community/cli@latest init HostApp \
@@ -222,7 +258,14 @@ jobs:
           npm install ../intempt-react-native
       - name: Build
         working-directory: HostApp/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: |
+          # The scaffolded app does not register mavenLocal. This bridge module
+          # deliberately declares no repositories block of its own — see the comment in
+          # android/build.gradle — precisely so the consuming APP decides where its
+          # dependencies come from. So the app is where it has to be added.
+          sed -i.bak 's/mavenCentral()/mavenLocal()\n        mavenCentral()/' settings.gradle
+          grep -q mavenLocal settings.gradle || { echo "mavenLocal not injected"; exit 1; }
+          ./gradlew assembleDebug --no-daemon
 
   # Typechecks the committed example app against the package it consumes, so a
   # breaking API change fails here rather than in a customer's editor.
