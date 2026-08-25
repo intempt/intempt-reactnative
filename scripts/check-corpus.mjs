@@ -60,11 +60,39 @@ if (specMethods.length === 0) {
 // contract method is never bridged at all. Autocapture was added to the
 // contract and shipped absent from this package with the gate passing.
 const contractMethods = Object.keys(contract.methods);
-const unbridged = contractMethods.filter((m) => !specMethods.includes(m));
+const unbridged = contractMethods.filter(
+  (m) => !specMethods.includes(m) && !excluded.has(m)
+);
 if (unbridged.length) {
   problems.push(
     `contract methods absent from the TurboModule spec: ${unbridged.join(', ')}`
   );
+}
+
+// excludedFromBridge is an escape hatch, so it needs a reverse check or it
+// becomes a place to hide a genuinely missing method. A contract method excused
+// from the bridge must still be implemented in the JS layer — that is the whole
+// claim being made about it. Without this, adding a name to excludedFromBridge
+// silently deletes its coverage.
+const jsLayer = readFileSync(join(root, 'src/index.ts'), 'utf8');
+const unimplemented = contractMethods.filter(
+  (m) =>
+    excluded.has(m) &&
+    !new RegExp(`^\\s+(async\\s+)?${m}\\s*[(<]`, 'm').test(jsLayer)
+);
+if (unimplemented.length) {
+  problems.push(
+    `excluded from the bridge but not implemented in src/index.ts either: ` +
+      `${unimplemented.join(', ')}`
+  );
+}
+
+// And every exclusion states why, so the next reader can judge it.
+const unexplained = [...excluded].filter(
+  (m) => !String(corpus.excludedFromBridge[m] ?? '').trim()
+);
+if (unexplained.length) {
+  problems.push(`excludedFromBridge entries with no reason: ${unexplained.join(', ')}`);
 }
 
 // And the reverse, so the spec cannot grow a method the contract never agreed

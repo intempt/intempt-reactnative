@@ -682,6 +682,11 @@
     }
   ],
   "excludedFromBridge": {
-    "doNotCaptureText": "Takes an Android View. No cross-platform meaning and no bridge representation. Android-only, absent from the JavaScript surface entirely rather than exposed and broken. The only sanctioned permanent exception."
+    "doNotCaptureText": "Takes an Android View. No cross-platform meaning and no bridge representation. Android-only, absent from the JavaScript surface entirely rather than exposed and broken. The only sanctioned permanent exception.",
+    "variation": "Derived in the JS layer from the bridged variationDetail — it returns .value. Bridging it natively would be a second round-trip for data the first call already returned.",
+    "boolVariation": "JS-layer typed narrowing over variationDetail. No native counterpart by design.",
+    "stringVariation": "JS-layer typed narrowing over variationDetail. No native counterpart by design.",
+    "numberVariation": "JS-layer typed narrowing over variationDetail. No native counterpart by design.",
+    "waitForInitialization": "Resolved against the JS-side instance registry; there is no native call to make."
   }
 }
