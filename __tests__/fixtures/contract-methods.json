@@ -16,7 +16,7 @@
     "the local, machine-readable half of a document that lives in another repo."
   ],
   "source": "intempt-swift/docs/SDK-API-CONTRACT.md",
-  "syncedAt": "2026-08-15",
+  "syncedAt": "2026-08-25",
   "methods": {
     "initialize": "init(apiKey, orgId, projectId, sourceId, instanceName)",
     "track": "track(eventTitle, data?) -> Bool",
@@ -35,7 +35,7 @@
     "optIn": "optIn()",
     "optOut": "optOut()",
     "hasOptedOut": "hasOptedOut() -> Bool",
-    "flush": "flush(completion) \u2014 completion receives events delivered",
+    "flush": "flush(completion) — completion receives events delivered",
     "getFlushInterval": "flushInterval getter",
     "setFlushInterval": "flushInterval setter; 0 disables the timer",
     "products": "products(feedId, count, fields, productId?)",
@@ -47,16 +47,23 @@
     "isAutocaptureRunning": "autocapture.isRunning",
     "setPushToken": "setPushToken(token) -> Bool",
     "trackPushOpen": "trackPushOpen(payload) -> Bool",
-    "trackPushReceived": "trackPushReceived(payload) -> Bool"
+    "trackPushReceived": "trackPushReceived(payload) -> Bool",
+    "variation": "variation(key, context, defaultValue) -> T",
+    "variationDetail": "variationDetail(key, context, defaultValue) -> { value, variant, reason }",
+    "allFlags": "allFlags(context) -> Map<key, value>",
+    "boolVariation": "boolVariation(key, context, defaultValue: Bool) -> Bool",
+    "stringVariation": "stringVariation(key, context, defaultValue: String) -> String",
+    "numberVariation": "numberVariation(key, context, defaultValue: Number) -> Number",
+    "waitForInitialization": "waitForInitialization(timeout) -> Void"
   },
   "diagnostics": {
-    "getSdkVersion": "Bridged, but not a contract method. Reports the NATIVE SDK's version \u2014 intempt-swift or intempt-android \u2014 which is what someone debugging an integration needs and which no contract method exposes. Kept in its own category rather than notBridged, because it IS on the spec."
+    "getSdkVersion": "Bridged, but not a contract method. Reports the NATIVE SDK's version — intempt-swift or intempt-android — which is what someone debugging an integration needs and which no contract method exposes. Kept in its own category rather than notBridged, because it IS on the spec."
   },
   "notBridged": {
     "isOptedIn": "Pure JavaScript convenience over hasOptedOut(). Never crosses the bridge, so it has no native method and no fixture.",
     "doNotCaptureText": "Android-only, takes a native View. No bridge representation and no cross-platform meaning. The contract's one sanctioned permanent exception.",
     "mainInstance": "Resolved in the JavaScript instance registry; the native side is addressed by instanceName on every call.",
     "instance": "Same as mainInstance.",
-    "experiments": "Experiment and personalization assignment is an intemptjs capability, deliberately absent from every mobile SDK (decided 2026-08-15). Android removed it; Swift is removing it. Recommendation feeds are a different capability and stay \u2014 see products()."
+    "experiments": "Experiment and personalization assignment is an intemptjs capability, deliberately absent from every mobile SDK (decided 2026-08-15). Android removed it; Swift is removing it. Recommendation feeds are a different capability and stay — see products()."
   }
 }

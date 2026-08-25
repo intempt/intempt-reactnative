@@ -62,6 +62,35 @@ export interface OrderedProduct {
  * `attributes` holds whatever catalog columns were requested. The named
  * accessors are conveniences over the same map.
  */
+/**
+ * Why an evaluation returned the value it did.
+ *
+ * These strings are the wire contract, shared with every Intempt SDK. Without a reason a caller
+ * cannot tell a deliberate off state from a request the service never answered — which is exactly
+ * why the mobile SDKs exposed no assignment at all until the serving contract could distinguish
+ * the two.
+ */
+export type FlagReason = 'targeted' | 'holdout' | 'not_targeted' | 'off';
+
+/**
+ * Who is being evaluated.
+ *
+ * `profileId` is the device identifier the native SDK already holds; supplying nothing lets it
+ * fill that in. It is present before and after a person signs in, which is what keeps their
+ * assignment stable across the transition — deriving on the user id re-buckets them mid-session.
+ */
+export interface FlagContext {
+  userId?: string;
+  profileId?: string;
+}
+
+/** A value and why it was returned. `variant` is absent when nothing was served. */
+export interface FlagDetail<T = unknown> {
+  value: T;
+  reason: FlagReason;
+  variant?: string;
+}
+
 export interface ProductRecommendation {
   attributes: Record<string, string>;
   productId?: string;

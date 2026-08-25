@@ -1,5 +1,12 @@
 package com.intempt.reactnative
 
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import com.facebook.react.bridge.WritableMap
+import com.intempt.core.types.FlagContext
 import android.os.Handler
 import android.os.Looper
 import com.facebook.react.bridge.Arguments
@@ -42,6 +49,18 @@ class IntemptReactNativeModule(
 ) : ReactContextBaseJavaModule(reactContext) {
 
     override fun getName(): String = NAME
+
+    /**
+     * intempt-android's flag methods are `suspend`. This module had no coroutine machinery
+     * before; the alternative was runBlocking, which parks a React Native worker for the length
+     * of a network round trip. SupervisorJob so one failed evaluation cannot cancel the scope.
+     */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override fun invalidate() {
+        scope.cancel()
+        super.invalidate()
+    }
 
     /** Rejects a contract method intempt-android does not expose. */
     private fun unsupported(promise: Promise, method: String, detail: String) {
@@ -369,6 +388,87 @@ class IntemptReactNativeModule(
             it.flushInterval = seconds.toInt()
             promise.resolve(null)
         }
+
+    // ---------------------------------------------------------------------
+    // Flags
+    // ---------------------------------------------------------------------
+
+    /**
+     * A native SDK runs on a device and is still an `api`-channel consumer: there is no visual
+     * editor for a native surface, so the value is authored as a payload and the integrator writes
+     * the branch.
+     *
+     * intempt-android's flag methods are `suspend`, so they are launched on [scope] rather than
+     * blocking the bridge thread. This module had no coroutine machinery before; the alternative
+     * was runBlocking, which parks a React Native worker for the length of a network round trip.
+     *
+     * Never rejects for a service failure. The JS layer holds the caller's default and applies it
+     * when `value` comes back absent, so a flag lookup cannot throw into a host app's render.
+     */
+    @ReactMethod
+    fun variationDetail(
+        instanceName: String,
+        key: String,
+        context: ReadableMap,
+        defaultValue: ReadableMap,
+        promise: Promise,
+    ) = withInstance(instanceName, "variationDetail", promise) { instance ->
+        scope.launch {
+            try {
+                val detail =
+                    instance.variationDetail(
+                        key,
+                        ReadableMapConverter.toFlagContext(context),
+                        null,
+                    )
+                promise.resolve(
+                    Arguments.createMap().apply {
+                        putString("reason", detail.reason.wireValue)
+                        detail.variant?.let { putString("variant", it) }
+                        // Absent and null are the same to the JS layer, which then applies the
+                        // caller's default. Encoding null as a value would defeat that.
+                        detail.value?.let { putValue(this, "value", it) }
+                    },
+                )
+            } catch (e: Exception) {
+                promise.reject("flag_evaluation_failed", e.message, e)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun allFlags(
+        instanceName: String,
+        context: ReadableMap,
+        promise: Promise,
+    ) = withInstance(instanceName, "allFlags", promise) { instance ->
+        scope.launch {
+            try {
+                val values = instance.allFlags(ReadableMapConverter.toFlagContext(context))
+                promise.resolve(
+                    Arguments.createMap().apply {
+                        values.forEach { (name, value) ->
+                            if (value == null) putNull(name) else putValue(this, name, value)
+                        }
+                    },
+                )
+            } catch (e: Exception) {
+                promise.reject("flag_evaluation_failed", e.message, e)
+            }
+        }
+    }
+
+    /** A flag payload is arbitrary JSON, so it crosses with its type preserved. */
+    private fun putValue(map: WritableMap, key: String, value: Any) {
+        when (value) {
+            is Boolean -> map.putBoolean(key, value)
+            is Int -> map.putInt(key, value)
+            is Long -> map.putDouble(key, value.toDouble())
+            is Double -> map.putDouble(key, value)
+            is String -> map.putString(key, value)
+            else -> map.putString(key, value.toString())
+        }
+    }
 
     // ---------------------------------------------------------------------
     // Personalization

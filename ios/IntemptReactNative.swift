@@ -435,6 +435,61 @@ public class IntemptReactNative: NSObject {
         }
     }
 
+    // MARK: - Flags
+
+    /// A native SDK runs on a device and is still an `api`-channel consumer: there is no visual
+    /// editor for a native surface, so the value is authored as a payload and the integrator
+    /// writes the branch.
+    ///
+    /// Never rejects for a service failure. The JS layer holds the caller's default and applies it
+    /// when `value` comes back absent, so a flag lookup cannot throw into a host app's render.
+    @objc
+    func variationDetail(
+        _ instanceName: String,
+        key: String,
+        context: [String: Any],
+        defaultValue: [String: Any],
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        withInstance(instanceName, "variationDetail", reject) { instance in
+            let flagContext = FlagContext(
+                userId: context["userId"] as? String,
+                profileId: context["profileId"] as? String)
+
+            instance.variationDetail(
+                key: key, context: flagContext, defaultValue: .null
+            ) { detail in
+                var out: [String: Any] = ["reason": detail.reason.rawValue]
+                if let variant = detail.variant { out["variant"] = variant }
+                // `.null` and "absent" are the same to the JS layer, which then applies the
+                // caller's default. Encoding null as a value would defeat that.
+                if let value = detail.value, value != .null {
+                    out["value"] = TypeBridge.any(from: value)
+                }
+                resolve(out)
+            }
+        }
+    }
+
+    @objc
+    func allFlags(
+        _ instanceName: String,
+        context: [String: Any],
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        withInstance(instanceName, "allFlags", reject) { instance in
+            let flagContext = FlagContext(
+                userId: context["userId"] as? String,
+                profileId: context["profileId"] as? String)
+
+            instance.allFlags(context: flagContext) { values in
+                resolve(values.mapValues { TypeBridge.any(from: $0) })
+            }
+        }
+    }
+
     // MARK: - Personalization
 
 

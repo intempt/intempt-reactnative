@@ -342,6 +342,14 @@ describe('every method labels its own errors', () => {
     ['getFlushInterval', (s) => s.getFlushInterval()],
     ['setFlushInterval', (s) => s.setFlushInterval(1)],
     ['products', (s) => s.products({ feedId: 'f' })],
+    // Flags. variation and the typed helpers delegate to variationDetail, so a rejection
+    // surfaces under that label - asserted here rather than assumed.
+    ['variationDetail', (s) => s.variationDetail('k', {}, false)],
+    ['variationDetail', (s) => s.variation('k', {}, false)],
+    ['variationDetail', (s) => s.boolVariation('k', {}, false)],
+    ['variationDetail', (s) => s.stringVariation('k', {}, 'x')],
+    ['variationDetail', (s) => s.numberVariation('k', {}, 0)],
+    ['allFlags', (s) => s.allFlags({})],
     ['getAutomaticEvents', (s) => s.getAutomaticEvents()],
     ['setAutomaticEvents', (s) => s.setAutomaticEvents({ sessions: true, versionChanges: false, appStateChanges: false })],
     ['setPushToken', (s) => s.setPushToken('t')],
@@ -370,7 +378,12 @@ describe('every method labels its own errors', () => {
     const bridged = Object.keys(corpus.methods);
     const labelled = CASES.map(([l]) => l);
     // initialize is exercised separately — it is not an instance method.
-    expect(bridged.filter((m) => m !== 'initialize' && !labelled.includes(m))).toEqual([]);
+    // waitForInitialization resolves locally and never reaches the bridge, so it has no
+    // rejection to label. variation and the typed helpers delegate to variationDetail and
+    // surface under that label, which the CASES table asserts directly.
+    const noBridgeCall = new Set(['initialize', 'waitForInitialization', 'variation',
+      'boolVariation', 'stringVariation', 'numberVariation']);
+    expect(bridged.filter((m) => !noBridgeCall.has(m) && !labelled.includes(m))).toEqual([]);
   });
 });
 

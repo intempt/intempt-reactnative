@@ -1,5 +1,6 @@
 package com.intempt.reactnative
 
+import com.intempt.core.types.FlagContext
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.ReadableType
@@ -19,6 +20,19 @@ import com.intempt.core.types.Product
  * instead of being JSON-encoded into a string.
  */
 object ReadableMapConverter {
+
+    /**
+     * A [FlagContext] from the bridge.
+     *
+     * Both fields are optional. Omitting profileId lets the native SDK fill in the device
+     * identifier it already holds — the one that survives sign-in, and therefore the one that
+     * keeps a visitor's assignment stable across it.
+     */
+    fun toFlagContext(map: ReadableMap?): FlagContext =
+        FlagContext(
+            userId = map?.takeIf { it.hasKey("userId") }?.getString("userId"),
+            profileId = map?.takeIf { it.hasKey("profileId") }?.getString("profileId"),
+        )
 
     /**
      * Converts a bridge map, or null when absent.

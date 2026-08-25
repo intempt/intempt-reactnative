@@ -4,7 +4,7 @@
     "",
     "Each entry names a contract method, the JavaScript call that invokes it,",
     "and the exact positional arguments the native module must receive. Every",
-    "contract method MUST appear here \u2014 a missing entry fails the corpus test,",
+    "contract method MUST appear here — a missing entry fails the corpus test,",
     "so adding a method to the contract without a fixture is a red build.",
     "",
     "SCOPE: this file asserts the BRIDGE contract, not the wire contract. What",
@@ -110,7 +110,7 @@
           }
         ]
       },
-      "note": "An explicit null clears an attribute and is forwarded. An undefined is an absent key and is dropped \u2014 forwarding it as null would clear something the caller never mentioned."
+      "note": "An explicit null clears an attribute and is forwarded. An undefined is an absent key and is dropped — forwarding it as null would clear something the caller never mentioned."
     },
     {
       "method": "identify",
@@ -472,7 +472,7 @@
           null
         ]
       },
-      "note": "fields MUST default to the compact set. An unfielded request returns raw ML embedding vectors \u2014 443x the payload for the same 10 products, 503 bytes against 222,919. A platform defaulting this to all fields is non-conformant."
+      "note": "fields MUST default to the compact set. An unfielded request returns raw ML embedding vectors — 443x the payload for the same 10 products, 503 bytes against 222,919. A platform defaulting this to all fields is non-conformant."
     },
     {
       "method": "getAutomaticEvents",
@@ -533,7 +533,7 @@
           }
         ]
       },
-      "note": "Distinct from setAutomaticEvents. configure() only sets options \u2014 nothing is installed until start(), because on iOS this swizzles UIKit."
+      "note": "Distinct from setAutomaticEvents. configure() only sets options — nothing is installed until start(), because on iOS this swizzles UIKit."
     },
     {
       "method": "startAutocapture",
@@ -590,7 +590,7 @@
           "fcm-token-abc"
         ]
       },
-      "note": "Android registration needs Google Play Services. A default emulator image has none \u2014 use google_apis."
+      "note": "Android registration needs Google Play Services. A default emulator image has none — use google_apis."
     },
     {
       "method": "trackPushOpen",
@@ -628,6 +628,54 @@
           "default",
           {
             "campaignId": "c-1"
+          }
+        ]
+      }
+    },
+    {
+      "method": "variationDetail",
+      "js": {
+        "fn": "variationDetail",
+        "args": [
+          "checkout_v2",
+          {
+            "userId": "u-1",
+            "profileId": "p-1"
+          },
+          false
+        ]
+      },
+      "native": {
+        "fn": "variationDetail",
+        "args": [
+          "default",
+          "checkout_v2",
+          {
+            "userId": "u-1",
+            "profileId": "p-1"
+          },
+          {}
+        ]
+      }
+    },
+    {
+      "method": "allFlags",
+      "js": {
+        "fn": "allFlags",
+        "args": [
+          {
+            "userId": "u-1",
+            "profileId": "p-1"
+          }
+        ]
+      },
+      "native": {
+        "fn": "allFlags",
+        "args": [
+          "default",
+          {
+            "userId": "u-1",
+            "profileId": "p-1"
           }
         ]
       }

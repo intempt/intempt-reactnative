@@ -51,6 +51,8 @@ jest.mock('../src/NativeIntempt', () => {
     'getFlushInterval',
     'setFlushInterval',
     'products',
+    'variationDetail',
+    'allFlags',
     'getAutomaticEvents',
     'setAutomaticEvents',
     'configureAutocapture',

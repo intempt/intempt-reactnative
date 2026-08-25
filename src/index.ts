@@ -20,6 +20,9 @@ import {
 import type {
   AutocaptureOptions,
   AutomaticEventOptions,
+  FlagContext,
+  FlagDetail,
+  FlagReason,
   IntemptConfig,
   IntemptProperties,
   IntemptValue,
@@ -37,6 +40,9 @@ export {
 export type {
   AutocaptureOptions,
   AutomaticEventOptions,
+  FlagContext,
+  FlagDetail,
+  FlagReason,
   IntemptConfig,
   IntemptProperties,
   IntemptValue,
@@ -378,6 +384,82 @@ export class IntemptInstance {
     return this.call('setFlushInterval', () =>
       NativeIntempt.setFlushInterval(this.instanceName, seconds)
     );
+  }
+
+  // MARK: - Flags
+
+  /**
+   * The value assigned for `key`, or `defaultValue` when the service did not answer.
+   *
+   * Ask for a KEY, never a mode. Whether the key names an experiment, a personalization or a flag
+   * is the platform's business: its serving query filters on channel and status and never on mode.
+   */
+  async variation<T>(key: string, context: FlagContext, defaultValue: T): Promise<T> {
+    const detail = await this.variationDetail<T>(key, context, defaultValue);
+    return detail.value;
+  }
+
+  /** As `variation`, plus why. */
+  async variationDetail<T>(
+    key: string,
+    context: FlagContext,
+    defaultValue: T
+  ): Promise<FlagDetail<T>> {
+    const raw = (await this.call('variationDetail', () =>
+      NativeIntempt.variationDetail(
+        this.instanceName,
+        key,
+        context as object,
+        // The default is sent for shape only; the native side never reads it. This layer holds
+        // the real one and applies it below, so a service failure cannot reject into a render.
+        {}
+      )
+    )) as { value?: T; reason?: FlagReason; variant?: string };
+
+    return {
+      value: raw?.value === undefined ? defaultValue : raw.value,
+      reason: raw?.reason ?? 'off',
+      variant: raw?.variant,
+    };
+  }
+
+  /** Every key assigned to this person, in one call. */
+  async allFlags(context: FlagContext): Promise<Record<string, unknown>> {
+    return (await this.call('allFlags', () =>
+      NativeIntempt.allFlags(this.instanceName, context as object)
+    )) as Record<string, unknown>;
+  }
+
+  async boolVariation(key: string, context: FlagContext, defaultValue: boolean): Promise<boolean> {
+    const value = await this.variation<unknown>(key, context, defaultValue);
+    // A served value of the wrong type is a misconfiguration, not something to coerce:
+    // Boolean('false') is true, and a silent coercion is indistinguishable from a real answer.
+    return typeof value === 'boolean' ? value : defaultValue;
+  }
+
+  async stringVariation(key: string, context: FlagContext, defaultValue: string): Promise<string> {
+    const value = await this.variation<unknown>(key, context, defaultValue);
+    return typeof value === 'string' ? value : defaultValue;
+  }
+
+  async numberVariation(key: string, context: FlagContext, defaultValue: number): Promise<number> {
+    const value = await this.variation<unknown>(key, context, defaultValue);
+    return typeof value === 'number' && Number.isFinite(value) ? value : defaultValue;
+  }
+
+  /**
+   * Resolves immediately.
+   *
+   * Present so the cross-SDK surface is the same everywhere, and so a caller porting from an SDK
+   * that polls a local flag store does not have to remove the call. Evaluation is remote on both
+   * native platforms: each `variation` is a request, so there is no local state to wait for.
+   */
+  waitForInitialization(timeoutMs?: number): Promise<void> {
+    // Not `async`: there is nothing to await, and marking it so only to satisfy a shape trips
+    // require-await. The parameter is part of the cross-SDK signature and is referenced rather
+    // than suppressed — a lint disable is a claim that stops being true if this grows a body.
+    void timeoutMs;
+    return Promise.resolve();
   }
 
   // MARK: - Personalization
