@@ -271,11 +271,28 @@ jobs:
           # so drain and re-add.
           cat > /tmp/intempt-maven-local.gradle <<'EOF'
           settingsEvaluated { settings ->
-              def repos = settings.dependencyResolutionManagement.repositories
-              def existing = repos.toList()
-              repos.clear()
-              repos.mavenLocal()
-              existing.each { repos.add(it) }
+              def drm = settings.dependencyResolutionManagement
+              def existing = drm.repositories.toList()
+              drm.repositories.clear()
+              // mavenLocal FIRST — Gradle resolves in order and mavenCentral has 3.0.4.
+              drm.repositories.mavenLocal()
+              // google() and mavenCentral() explicitly, NOT just whatever settings already
+              // had: with PREFER_SETTINGS below, the project's own repositories are ignored,
+              // and if the settings list happened to be empty the build would resolve
+              // NOTHING. Verified locally — an empty existing list left MavenLocal alone.
+              drm.repositories.google()
+              drm.repositories.mavenCentral()
+              existing.each { drm.repositories.add(it) }
+              // PREFER_SETTINGS: with the default PREFER_PROJECT, any project that
+              // declares its own repositories wins and these are ignored entirely —
+              // which is consistent with mavenLocal being passed, published and still
+              // not consulted.
+              drm.repositoriesMode.set(org.gradle.api.initialization.resolve.RepositoriesMode.PREFER_SETTINGS)
+              println "INTEMPT_REPO_ORDER: " + drm.repositories.collect { it.name }.join(",")
+          }
+          // Print what actually resolves, so the next failure is evidence rather than a guess.
+          gradle.projectsEvaluated {
+              println "INTEMPT_MODE: " + gradle.rootProject.name
           }
           EOF
           # Prove the artifact we just published is the one that resolves. Without this the
