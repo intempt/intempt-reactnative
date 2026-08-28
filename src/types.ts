@@ -70,7 +70,6 @@ export interface OrderedProduct {
  * why the mobile SDKs exposed no assignment at all until the serving contract could distinguish
  * the two.
  */
-export type FlagReason = 'targeted' | 'holdout' | 'not_targeted' | 'off';
 
 /**
  * Who is being evaluated.
@@ -85,12 +84,6 @@ export interface FlagContext {
 }
 
 /** A value and why it was returned. `variant` is absent when nothing was served. */
-export interface FlagDetail<T = unknown> {
-  value: T;
-  reason: FlagReason;
-  variant?: string;
-}
-
 export interface ProductRecommendation {
   attributes: Record<string, string>;
   productId?: string;

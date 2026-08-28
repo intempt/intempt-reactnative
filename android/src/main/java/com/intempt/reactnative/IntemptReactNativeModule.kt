@@ -406,28 +406,26 @@ class IntemptReactNativeModule(
      * when `value` comes back absent, so a flag lookup cannot throw into a host app's render.
      */
     @ReactMethod
-    fun variationDetail(
+    fun variation(
         instanceName: String,
         key: String,
         context: ReadableMap,
         defaultValue: ReadableMap,
         promise: Promise,
-    ) = withInstance(instanceName, "variationDetail", promise) { instance ->
+    ) = withInstance(instanceName, "variation", promise) { instance ->
         scope.launch {
             try {
-                val detail =
-                    instance.variationDetail(
+                val value =
+                    instance.variation(
                         key,
                         ReadableMapConverter.toFlagContext(context),
                         null,
                     )
                 promise.resolve(
                     Arguments.createMap().apply {
-                        putString("reason", detail.reason.wireValue)
-                        detail.variant?.let { putString("variant", it) }
                         // Absent and null are the same to the JS layer, which then applies the
                         // caller's default. Encoding null as a value would defeat that.
-                        detail.value?.let { putValue(this, "value", it) }
+                        value?.let { putValue(this, "value", it) }
                     },
                 )
             } catch (e: Exception) {

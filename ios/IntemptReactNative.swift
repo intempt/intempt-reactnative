@@ -444,7 +444,7 @@ public class IntemptReactNative: NSObject {
     /// Never rejects for a service failure. The JS layer holds the caller's default and applies it
     /// when `value` comes back absent, so a flag lookup cannot throw into a host app's render.
     @objc
-    func variationDetail(
+    func variation(
         _ instanceName: String,
         key: String,
         context: [String: Any],
@@ -452,19 +452,18 @@ public class IntemptReactNative: NSObject {
         resolver resolve: @escaping RCTPromiseResolveBlock,
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
-        withInstance(instanceName, "variationDetail", reject) { instance in
+        withInstance(instanceName, "variation", reject) { instance in
             let flagContext = FlagContext(
                 userId: context["userId"] as? String,
                 profileId: context["profileId"] as? String)
 
-            instance.variationDetail(
+            instance.variation(
                 key: key, context: flagContext, defaultValue: .null
-            ) { detail in
-                var out: [String: Any] = ["reason": detail.reason.rawValue]
-                if let variant = detail.variant { out["variant"] = variant }
+            ) { value in
+                var out: [String: Any] = [:]
                 // `.null` and "absent" are the same to the JS layer, which then applies the
                 // caller's default. Encoding null as a value would defeat that.
-                if let value = detail.value, value != .null {
+                if value != .null {
                     out["value"] = TypeBridge.any(from: value)
                 }
                 resolve(out)

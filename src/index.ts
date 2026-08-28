@@ -21,7 +21,6 @@ import type {
   AutocaptureOptions,
   AutomaticEventOptions,
   FlagContext,
-  FlagDetail,
   FlagReason,
   IntemptConfig,
   IntemptProperties,
@@ -41,7 +40,6 @@ export type {
   AutocaptureOptions,
   AutomaticEventOptions,
   FlagContext,
-  FlagDetail,
   FlagReason,
   IntemptConfig,
   IntemptProperties,
@@ -395,18 +393,8 @@ export class IntemptInstance {
    * is the platform's business: its serving query filters on channel and status and never on mode.
    */
   async variation<T>(key: string, context: FlagContext, defaultValue: T): Promise<T> {
-    const detail = await this.variationDetail<T>(key, context, defaultValue);
-    return detail.value;
-  }
-
-  /** As `variation`, plus why. */
-  async variationDetail<T>(
-    key: string,
-    context: FlagContext,
-    defaultValue: T
-  ): Promise<FlagDetail<T>> {
-    const raw = (await this.call('variationDetail', () =>
-      NativeIntempt.variationDetail(
+    const raw = (await this.call('variation', () =>
+      NativeIntempt.variation(
         this.instanceName,
         key,
         context as object,
@@ -414,13 +402,9 @@ export class IntemptInstance {
         // the real one and applies it below, so a service failure cannot reject into a render.
         {}
       )
-    )) as { value?: T; reason?: FlagReason; variant?: string };
+    )) as { value?: T };
 
-    return {
-      value: raw?.value === undefined ? defaultValue : raw.value,
-      reason: raw?.reason ?? 'off',
-      variant: raw?.variant,
-    };
+    return raw?.value === undefined ? defaultValue : raw.value;
   }
 
   /** Every key assigned to this person, in one call. */

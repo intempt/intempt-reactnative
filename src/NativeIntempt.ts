@@ -96,8 +96,8 @@ export interface Spec extends TurboModule {
   // Flags — a mobile SDK runs on a device and is still an `api`-channel consumer,
   // because there is no visual editor for a native surface: the value is authored
   // as a payload and the integrator writes the branch.
-  /** Resolves to `{value, reason, variant}`. Never rejects for a service failure. */
-  variationDetail(
+  /** Resolves to `{value}`. Never rejects for a service failure. */
+  variation(
     instanceName: string,
     key: string,
     context: Object,

@@ -168,7 +168,7 @@ RCT_EXTERN_METHOD(setFlushInterval
 
 // MARK: - Flags
 
-RCT_EXTERN_METHOD(variationDetail
+RCT_EXTERN_METHOD(variation
                   : (NSString *)instanceName key
                   : (NSString *)key context
                   : (NSDictionary *)context defaultValue
