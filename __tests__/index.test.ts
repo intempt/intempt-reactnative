@@ -59,12 +59,12 @@ describe('init', () => {
   // The device never reads or sends its own address; it states whether the derivation is wanted.
   it('defaults geolocation on, matching the native SDKs', async () => {
     await init(VALID);
-    expect(nativeCalls[0].args[5]).toBe(true);
+    expect(nativeCalls[0]?.args[5]).toBe(true);
   });
 
   it('passes the geolocation opt-out through to native', async () => {
     await init({ ...VALID, useIpAddressForGeolocation: false });
-    expect(nativeCalls[0].args[5]).toBe(false);
+    expect(nativeCalls[0]?.args[5]).toBe(false);
   });
 
   it.each([
