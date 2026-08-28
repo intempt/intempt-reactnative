@@ -513,7 +513,8 @@ export async function init(config: IntemptConfig): Promise<IntemptInstance> {
       config.apiKey,
       config.orgId,
       config.projectId,
-      config.sourceId
+      config.sourceId,
+      config.useIpAddressForGeolocation ?? true
     );
   } catch (error) {
     throw fromNativeRejection(error, 'init');

@@ -39,6 +39,25 @@ export interface IntemptConfig {
   sourceId: string;
   /** Defaults to `"default"`. Two instances may not share a name. */
   instanceName?: string;
+  /**
+   * Whether Intempt may derive country, region and city from the address the request already
+   * arrives on. Defaults to `true`, matching mixpanel-swift's `useIPAddressForGeolocation` and
+   * android-sdk's `useIpAddressForGeolocation`.
+   *
+   * The SDK never reads or sends the device's address itself. It sends `?ip=1` or `?ip=0` and the
+   * platform resolves the connection address against a local database, then discards it before
+   * storing anything. No third party is involved.
+   *
+   * Leaving it on means your app collects **Coarse Location**: the derived country/region/city is
+   * stored, and Apple counts anything derived from data sent off device separately from that data.
+   * Declare it in your App Store privacy label, or set this to `false`.
+   *
+   * **iOS only.** Android reads this from `assets/intempt-config.json`
+   * (`"useIpAddressForGeolocation": false`), because the Android SDK takes credentials at runtime
+   * and options from the asset file. Passing `false` here logs a warning naming that file rather
+   * than silently doing nothing.
+   */
+  useIpAddressForGeolocation?: boolean;
 }
 
 /**
