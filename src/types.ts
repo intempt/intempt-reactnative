@@ -52,10 +52,8 @@ export interface IntemptConfig {
    * stored, and Apple counts anything derived from data sent off device separately from that data.
    * Declare it in your App Store privacy label, or set this to `false`.
    *
-   * **iOS only.** Android reads this from `assets/intempt-config.json`
-   * (`"useIpAddressForGeolocation": false`), because the Android SDK takes credentials at runtime
-   * and options from the asset file. Passing `false` here logs a warning naming that file rather
-   * than silently doing nothing.
+   * Honoured on both platforms. It reaches the native SDK directly and overrides
+   * `assets/intempt-config.json` on Android, so an RN app never has to edit the native bundle.
    */
   useIpAddressForGeolocation?: boolean;
 }

@@ -1,6 +1,5 @@
 package com.intempt.reactnative
 
-import android.util.Log
 
 import android.os.Handler
 import android.os.Looper
@@ -17,6 +16,7 @@ import com.intempt.core.types.AutocaptureOptions
 import com.intempt.core.types.AutomaticEventsOptions
 import com.intempt.core.types.ConsentAction
 import com.intempt.core.types.IntemptCredentials
+import com.intempt.core.types.IntemptRuntimeOptions
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -117,23 +117,11 @@ class IntemptReactNativeModule(
             // race. Resolving regardless would hand JS a registry entry whose
             // every later call rejects `not_initialized` — the same lie as the
             // unconditional `true` this module used to return.
-            // Android reads useIpAddressForGeolocation from assets/intempt-config.json, not from
-            // here. That is the SDK's deliberate split -- a bridge supplies credentials at runtime,
-            // options stay in the asset file where the host app can edit them -- so this bridge
-            // cannot honour a JS-supplied value without changing that contract.
-            //
-            // Received and reported rather than silently dropped: a parameter that looks accepted
-            // and does nothing is worse than one that says where the real switch lives. The default
-            // is true on both sides, so this only fires when someone actually asked for false.
-            if (!useIpAddressForGeolocation) {
-                Log.w(
-                    "IntemptReactNative",
-                    "useIpAddressForGeolocation=false is not applied on Android. Set " +
-                        "\"useIpAddressForGeolocation\": false in assets/intempt-config.json instead. " +
-                        "The option is honoured on iOS.",
-                )
-            }
-            if (Intempt.initialize(reactContext, credentials, instanceName) == null) {
+            // An RN app has no asset file to edit, so the four-argument overload is the only way
+            // this option can reach the SDK at all. Passed explicitly rather than left to the asset
+            // file: the value JS supplied is the one the developer chose.
+            val options = IntemptRuntimeOptions(useIpAddressForGeolocation = useIpAddressForGeolocation)
+            if (Intempt.initialize(reactContext, credentials, instanceName, options) == null) {
                 promise.reject(
                     "missing_configuration",
                     "Intempt.init could not create instance '$instanceName'. " +
