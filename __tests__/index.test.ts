@@ -51,8 +51,20 @@ describe('init', () => {
     await init(VALID);
     expect(nativeCalls[0]).toEqual({
       fn: 'initialize',
-      args: ['default', 'prefix.secret', 'org-1', 'proj-1', 'src-1'],
+      args: ['default', 'prefix.secret', 'org-1', 'proj-1', 'src-1', true],
     });
+  });
+
+  // The platform derives country/region/city from the address the request already arrives on.
+  // The device never reads or sends its own address; it states whether the derivation is wanted.
+  it('defaults geolocation on, matching the native SDKs', async () => {
+    await init(VALID);
+    expect(nativeCalls[0].args[5]).toBe(true);
+  });
+
+  it('passes the geolocation opt-out through to native', async () => {
+    await init({ ...VALID, useIpAddressForGeolocation: false });
+    expect(nativeCalls[0].args[5]).toBe(false);
   });
 
   it.each([
