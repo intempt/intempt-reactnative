@@ -105,6 +105,52 @@ describe('init', () => {
     expect(nativeCalls).toHaveLength(0);
   });
 
+  // The guard below was added with no test that had ever seen it fire, so every mutation
+  // of its condition survived. These three pin both directions: it warns on a real
+  // mismatch, and it stays silent when there is nothing to warn about.
+  it('warns when a repeated init asks for a different geolocation choice', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await init({ ...VALID, useIpAddressForGeolocation: true });
+      await init({ ...VALID, useIpAddressForGeolocation: false });
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      const message = String(warn.mock.calls[0]?.[0]);
+      // Both values belong in the message: the caller needs to see what they asked for
+      // and what actually stands.
+      expect(message).toContain('useIpAddressForGeolocation: false');
+      expect(message).toContain('already exists with true');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('stays silent when a repeated init asks for the same geolocation choice', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await init({ ...VALID, useIpAddressForGeolocation: false });
+      await init({ ...VALID, useIpAddressForGeolocation: false });
+
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  // Omitting the option on a re-init is not a conflict -- it is the common case, since a
+  // hot reload replays the same init. Warning here would fire on every refresh.
+  it('stays silent when a repeated init omits the geolocation choice', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await init({ ...VALID, useIpAddressForGeolocation: false });
+      await init(VALID);
+
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('keeps named instances separate', async () => {
     const a = await init(VALID);
     const b = await init({ ...VALID, instanceName: 'secondary' });
