@@ -51,20 +51,35 @@ describe('init', () => {
     await init(VALID);
     expect(nativeCalls[0]).toEqual({
       fn: 'initialize',
-      args: ['default', 'prefix.secret', 'org-1', 'proj-1', 'src-1', true],
+      args: ['default', 'prefix.secret', 'org-1', 'proj-1', 'src-1', null],
     });
   });
 
   // The platform derives country/region/city from the address the request already arrives on.
   // The device never reads or sends its own address; it states whether the derivation is wanted.
-  it('defaults geolocation on, matching the native SDKs', async () => {
+  //
+  // Omitting the option sends null, NOT true. On Android a non-null value overrides
+  // assets/intempt-config.json, so sending true here flipped a customer's
+  // "useIpAddressForGeolocation": false back on whenever JS stayed silent — a privacy
+  // regression arriving through an SDK upgrade with no code change on their side. Null lets
+  // the file decide, and where there is no file the native default is on, so the observable
+  // behaviour for everyone else is unchanged.
+  it('omits the geolocation choice rather than asserting a default', async () => {
     await init(VALID);
-    expect(nativeCalls[0]?.args[5]).toBe(true);
+    expect(nativeCalls[0]?.args[5]).toBeNull();
   });
 
   it('passes the geolocation opt-out through to native', async () => {
     await init({ ...VALID, useIpAddressForGeolocation: false });
     expect(nativeCalls[0]?.args[5]).toBe(false);
+  });
+
+  // The other half of the same contract: an explicit true must still reach native, so a
+  // caller can override a config file that says false. Without this, sending null
+  // unconditionally would also pass the test above.
+  it('passes an explicit geolocation opt-in through to native', async () => {
+    await init({ ...VALID, useIpAddressForGeolocation: true });
+    expect(nativeCalls[0]?.args[5]).toBe(true);
   });
 
   it.each([
