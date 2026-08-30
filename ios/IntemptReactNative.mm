@@ -29,7 +29,7 @@ RCT_EXTERN_METHOD(initialize
                   : (NSString *)orgId projectId
                   : (NSString *)projectId sourceId
                   : (NSString *)sourceId useIpAddressForGeolocation
-                  : (BOOL)useIpAddressForGeolocation resolver
+                  : (nullable NSNumber *)useIpAddressForGeolocation resolver
                   : (RCTPromiseResolveBlock)resolve rejecter
                   : (RCTPromiseRejectBlock)reject)
 

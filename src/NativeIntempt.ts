@@ -28,7 +28,7 @@ export interface Spec extends TurboModule {
     orgId: string,
     projectId: string,
     sourceId: string,
-    useIpAddressForGeolocation: boolean
+    useIpAddressForGeolocation: boolean | null
   ): Promise<void>;
 
   // Capture — every one resolves to whether the event was queued

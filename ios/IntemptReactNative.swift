@@ -104,7 +104,7 @@ public class IntemptReactNative: NSObject {
         orgId: String,
         projectId: String,
         sourceId: String,
-        useIpAddressForGeolocation: Bool,
+        useIpAddressForGeolocation: NSNumber?,
         resolver resolve: @escaping RCTPromiseResolveBlock,
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
@@ -115,7 +115,7 @@ public class IntemptReactNative: NSObject {
                 projectId: projectId,
                 sourceId: sourceId,
                 instanceName: instanceName,
-                useIPAddressForGeolocation: useIpAddressForGeolocation)
+                useIPAddressForGeolocation: useIpAddressForGeolocation?.boolValue ?? true)
             resolve(nil)
         } catch let error as IntemptError {
             rejectIntempt(reject, error)

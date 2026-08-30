@@ -93,7 +93,7 @@ class IntemptReactNativeModule(
         orgId: String,
         projectId: String,
         sourceId: String,
-        useIpAddressForGeolocation: Boolean,
+        useIpAddressForGeolocation: Boolean?,
         promise: Promise,
     ) {
         try {
@@ -120,6 +120,8 @@ class IntemptReactNativeModule(
             // An RN app has no asset file to edit, so the four-argument overload is the only way
             // this option can reach the SDK at all. Passed explicitly rather than left to the asset
             // file: the value JS supplied is the one the developer chose.
+            // Null when JS did not supply it, so assets/intempt-config.json stays
+            // authoritative. Passing a value here overrides the file.
             val options = IntemptRuntimeOptions(useIpAddressForGeolocation = useIpAddressForGeolocation)
             if (Intempt.initialize(reactContext, credentials, instanceName, options) == null) {
                 promise.reject(
