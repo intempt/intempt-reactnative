@@ -22,27 +22,25 @@ Pod::Spec.new do |s|
   s.preserve_paths = 'LICENSE', 'NOTICE', 'README.md', 'package.json'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
 
-  # PINNED EXACTLY, AND DELIBERATELY TO A VERSION TRUNK DOES NOT SERVE YET.
+  # PINNED EXACTLY, to the published release that carries the flag surface.
   #
-  # This bridge calls FlagContext, variation and allFlags. Trunk serves exactly one
-  # version of Intempt — 0.1.0 — and it has none of them, measured against
-  # trunk.cocoapods.org rather than inferred.
+  # This bridge calls FlagContext, variation and allFlags. Trunk serves 0.1.0 and 0.2.0;
+  # 0.1.0 has none of the three and 0.2.0 has all of them — measured against
+  # trunk.cocoapods.org and the sources of tag v0.2.0, not inferred.
   #
-  # The previous pin here was '~> 0.1', which SELECTS 0.1.0. A consumer therefore got a
-  # successful dependency resolution followed by "cannot find 'FlagContext' in scope" at
-  # IntemptReactNative.swift — a compile error inside a vendored pod, which reads as a
-  # broken SDK rather than as a missing release. The range existed only so CI's branch pod
-  # (whose podspec declares 0.1.1) would resolve; it bought that at the cost of resolving
-  # to the wrong release for everyone else.
+  # Both earlier pins are recorded because each was wrong in an instructive way. '~> 0.1'
+  # SELECTS 0.1.0, so a consumer got a successful dependency resolution followed by "cannot
+  # find 'FlagContext' in scope" at IntemptReactNative.swift — a compile error inside a
+  # vendored pod, which reads as a broken SDK rather than as a missing release. An exact
+  # '0.1.1' replaced it so resolution would fail by NAME instead; trunk never served 0.1.1,
+  # because intempt-swift shipped the flag surface as 0.2.0.
   #
-  # An exact 0.1.1 does both jobs honestly:
-  #   - a consumer gets "none of your spec sources contain a spec satisfying the dependency
-  #     Intempt (= 0.1.1)", which NAMES the missing release instead of hiding it;
-  #   - CI's :git/:branch pod still resolves, because that branch declares 0.1.1.
+  # Exact rather than '~> 0.2': this bridge compiles against symbols it does not own, so a
+  # new SDK minor should not reach a customer's build before this repo's CI has seen it.
   #
-  # `npm run check:native-pins` measures this against trunk on every CI run and is red until
-  # intempt-swift publishes. Do not tag a release while it is red.
-  s.dependency 'Intempt', '0.1.1'
+  # `npm run check:native-pins` resolves this against trunk on every CI run and downloads
+  # what it selects to confirm the symbol is really in there. Do not tag while it is red.
+  s.dependency 'Intempt', '0.2.0'
 
   # install_modules_dependencies wires React-Core, and on the new architecture
   # also ReactCommon, RCT-Folly, glog and the generated spec. Available in

@@ -14,10 +14,10 @@ on iOS and [intempt-android](https://github.com/intempt/intempt-android) on Andr
 | JavaScript / TypeScript layer | complete |
 | TurboModule spec + codegen config | complete |
 | Contract fixture corpus | complete, 32 fixtures over 29 methods |
-| iOS native module | complete, **typechecked** against `Intempt` 0.1.0 |
-| Android native module | complete against `intempt-android` 3.0; 3 push methods reject |
-| iOS distribution | **published** — `Intempt 0.1.0` on CocoaPods trunk |
-| Android distribution | **published** — `intempt-android` 3.0.4 on Maven Central |
+| iOS native module | complete, **typechecked** against `Intempt` 0.2.0 |
+| Android native module | complete against `intempt-android` 3.1; 3 push methods reject |
+| iOS distribution | **published** — `Intempt 0.2.0` on CocoaPods trunk |
+| Android distribution | **published** — `intempt-android` 3.1.0 on Maven Central |
 | npm distribution | **not yet published** — release workflow ready, no tag cut yet |
 
 ## Install
@@ -207,11 +207,12 @@ therefore the one that keeps a person's assignment stable across it.
 `variationDetail` is deliberately absent. See `docs/CONVENTIONS.md` for why, and for the
 requirement that is still open at the platform.
 
-> **Not installable yet.** Both native pins resolve to published releases that predate the flag
-> surface: `intempt-swift` 0.1.0 on CocoaPods trunk, and `com.intempt.sdk:intempt-android:3.0.4`
-> on Maven Central. Until each publishes a release containing it, a consumer's first build fails
-> with `cannot find 'FlagContext' in scope`. `npm run check:native-pins` measures both registries
-> and fails while that is true.
+> **Both native pins resolve to a release that carries the flag surface**, as of 2026-08-31:
+> `Intempt 0.2.0` on CocoaPods trunk and `com.intempt.sdk:intempt-android:3.1.0` on Maven Central.
+> Before those releases existed the pins selected 0.1.0 and 3.0.4, and a consumer's first build
+> failed with `cannot find 'FlagContext' in scope`. `npm run check:native-pins` re-measures both
+> registries on every CI run — it downloads what each pin selects and looks for the symbol, so a
+> version number is never taken as evidence.
 
 ### Recommendations
 

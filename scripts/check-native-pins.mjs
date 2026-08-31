@@ -2,17 +2,18 @@
 /**
  * Native pin gate — does the SHIPPED pin resolve to an artifact that can compile this bridge?
  *
- * THIS JOB IS EXPECTED TO FAIL until intempt-swift and intempt-android each publish a release
- * containing the flag surface. That is the point of it, and a red check here is the correct
- * state of this branch, not a broken gate.
+ * A red check here means DO NOT SHIP, and it stays a standing gate after it first goes green:
+ * every future pin move, and every SDK release that changes what a coordinate contains, is
+ * measured by it.
  *
  * The failure it exists to prevent already happened, silently, across twelve green checks. Every
- * native CI job builds this bridge against `feature/experiences-flags` of both SDKs — a pod from
+ * native CI job built this bridge against `feature/experiences-flags` of both SDKs — a pod from
  * a git branch, and an Android artifact republished into mavenLocal under the SAME coordinate
- * Maven Central serves, so `3.0.4` stops denoting fixed bytes on any machine that has run that
+ * Maven Central serves, so `3.0.4` stopped denoting fixed bytes on any machine that had run that
  * job. `Android build`, `iOS build`, `iOS typecheck` and `E2E` were all green while the two
- * versions THIS PACKAGE SHIPS could not compile a line of it. A consumer's first build was
- * `cannot find 'FlagContext' in scope`, and nothing in CI said so.
+ * versions THIS PACKAGE SHIPPED could not compile a line of it. A consumer's first build was
+ * `cannot find 'FlagContext' in scope`, and nothing in CI said so. Those overrides are gone;
+ * this gate is what keeps them gone.
  *
  * So this gate ignores every override CI applies and asks only what a consumer's build asks:
  *
@@ -89,7 +90,7 @@ function resolvePod(requirement, available) {
   }
   throw new Error(
     `unsupported pod requirement ${JSON.stringify(requirement)} — this gate reads exact ` +
-      `('0.1.1') and optimistic ('~> 0.1') pins only`
+      `('0.2.0') and optimistic ('~> 0.2') pins only`
   );
 }
 
@@ -119,16 +120,17 @@ function die(...lines) {
   console.error('native pin check FAILED');
   for (const line of lines.flat()) console.error(`  - ${line}`);
   console.error(
-    '\n  This gate is EXPECTED to be red until both native SDKs publish a release containing the\n' +
-      '  flag surface. It measures the artifacts a consumer resolves, and deliberately ignores\n' +
-      '  the branch pod and the mavenLocal publish the native CI jobs use.\n' +
+    '\n  This gate measures the artifacts a CONSUMER resolves — CocoaPods trunk and Maven\n' +
+      '  Central — and never a branch or a mavenLocal publish. A version number is not\n' +
+      '  evidence: it downloads what the pin selects and looks for the symbol.\n' +
       '\n' +
       '  DO NOT TAG A RELEASE WHILE THIS IS RED. The pins that ship cannot compile this bridge,\n' +
       '  and a consumer\'s first build fails with "cannot find \'FlagContext\' in scope".\n' +
       '\n' +
-      '  To clear it: publish each SDK, move the pin in IntemptReactNative.podspec and\n' +
-      '  android/build.gradle to the published version, and delete the branch overrides in\n' +
-      '  .github/workflows/ci.yml and scripts/run-e2e-ios.sh.'
+      '  To clear it: move the pin in IntemptReactNative.podspec and android/build.gradle to a\n' +
+      '  PUBLISHED version that contains the surface, and make sure no CI override is standing\n' +
+      '  in for one (.github/workflows/ci.yml, scripts/run-e2e-ios.sh). As of 2026-08-31 that is\n' +
+      '  Intempt 0.2.0 on trunk and com.intempt.sdk:intempt-android:3.1.0 on Maven Central.'
   );
   process.exit(1);
 }
@@ -182,9 +184,9 @@ if (!mavenVersions.includes(androidVersion)) {
   } else if (!archiveContains(jar, 'zip', REQUIRED_SYMBOL)) {
     problems.push(
       `com.intempt.sdk:intempt-android:${androidVersion} is published, and its sources jar ` +
-        `contains no \`${REQUIRED_SYMBOL}\`. That is the artifact a consumer resolves — the ` +
-        `mavenLocal publish in ci.yml shadows it under the SAME coordinate and proves nothing ` +
-        `about it.`
+        `contains no \`${REQUIRED_SYMBOL}\`. That is the artifact a consumer resolves. Do not ` +
+        `answer this by republishing different bytes under the same coordinate, or by shadowing ` +
+        `it from mavenLocal in CI — both were tried, and this gate exists because they passed.`
     );
   }
 }

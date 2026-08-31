@@ -34,11 +34,6 @@ Feature flags: read a value by key from the same serving endpoint the rest of Ex
 
 ### Known gaps
 
-- **Neither native pin resolves to a release containing the flag surface.** `intempt-swift`
-  0.1.0 on CocoaPods trunk and `com.intempt.sdk:intempt-android:3.0.4` on Maven Central both
-  predate it. A consumer installing today gets a bridge that cannot compile.
-  `npm run check:native-pins` measures this against both registries and fails until each SDK
-  publishes. **Do not tag a release while it fails.**
 - Flags are unobserved by the mutation gate and by every unit test, because both live in the
   native bridges. See `docs/TESTING.md`.
 
@@ -47,6 +42,17 @@ Feature flags: read a value by key from the same serving endpoint the rest of Ex
 - Version bumped 0.1.1 → 0.1.2 because **0.1.1 is already on npm** (published 2026-08-21) and
   contains no flag surface. Publishing this tree as 0.1.1 would republish a different artifact
   under a version a consumer already resolves.
+- **Both native pins now resolve to a release that carries the flag surface.** `Intempt` moves
+  0.1.1 → **0.2.0** (CocoaPods trunk; 0.1.1 was never published, intempt-swift shipped the
+  surface as 0.2.0) and `com.intempt.sdk:intempt-android` moves 3.0.4 → **3.1.0** (Maven
+  Central). Both verified by download, not by version number.
+- **Every CI override that stood in for those releases is deleted**, so no native job builds
+  against a branch: the `INTEMPT_SWIFT_REF` / `INTEMPT_ANDROID_REF` workflow variables, the
+  `:git`/`:branch` Podfile append in `ios-build` and `scripts/run-e2e-ios.sh`, and
+  `android-build`'s intempt-android checkout, `publishToMavenLocal` and repository-reordering
+  init script. Four jobs had been green against artifacts no consumer could obtain.
+  `ios-typecheck` now derives the intempt-swift tag from the podspec pin rather than holding a
+  second copy of the version.
 
 ## Unreleased
 

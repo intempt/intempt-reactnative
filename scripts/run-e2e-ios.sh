@@ -63,22 +63,16 @@ npm install --no-audit --no-fund
 
 echo "==> expo prebuild (generates the native iOS project)"
 npx expo prebuild --platform ios --clean --no-install
-# Point the Intempt pod at the intempt-swift ref this bridge is built against.
-#
-# The bridge calls FlagContext, variation and allFlags. The published pod
-# (0.1.0 on CocoaPods trunk) predates all three, so a plain `pod install` builds
-# against a release that cannot compile the code under test — which is exactly how
-# this job failed with "cannot find 'FlagContext' in scope" at
-# IntemptReactNative.swift:456 and :483.
-#
-# ios-build in ci.yml does the same thing for the bare host app; INTEMPT_SWIFT_REF
-# is set at workflow level so both move together. Remove once intempt-swift
-# publishes a release containing the flag surface.
-SWIFT_REF="${INTEMPT_SWIFT_REF:-feature/experiences-flags}"
-printf "\npod 'Intempt', :git => 'https://github.com/intempt/intempt-swift.git', :branch => '%s'\n" \
-  "$SWIFT_REF" >> ios/Podfile
-grep -q "intempt-swift.git" ios/Podfile || { echo "Intempt pod override not appended to ios/Podfile"; exit 1; }
 
+# No Podfile override. The Intempt pod resolves from CocoaPods trunk through the
+# packed podspec's own `s.dependency 'Intempt', '0.2.0'`, which is what a consumer
+# resolves too.
+#
+# This block used to append `:git => ..., :branch => 'feature/experiences-flags'`,
+# because trunk served only 0.1.0 and that release predates FlagContext, variation
+# and allFlags — a plain `pod install` then failed with "cannot find 'FlagContext'
+# in scope" at IntemptReactNative.swift:456 and :483. intempt-swift published 0.2.0
+# on 2026-08-31, so the override is gone and this run measures the real artifact.
 ( cd ios && pod install )
 
 echo "==> preparing a simulator"
