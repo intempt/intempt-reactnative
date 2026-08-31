@@ -50,6 +50,12 @@ jobs:
             exit 1
           fi
 
+      # The gap C1 named: nothing between merge and `git tag` checked that either native
+      # SDK had actually shipped the surface this release adds. A tag published against
+      # the current pins ships a package whose first consumer build fails to compile.
+      # This is the same gate ci.yml runs, placed where it can stop a publish.
+      - run: npm run check:native-pins
+
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test

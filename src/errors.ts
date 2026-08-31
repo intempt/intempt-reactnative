@@ -76,6 +76,11 @@ export class IntemptError extends Error {
     this.method = detail.method;
 
     // Required for `instanceof` to survive transpilation to ES5.
+    //
+    // EQUIVALENT MUTANT. This build targets esnext, where instanceof already works without the
+    // call, so deleting it changes nothing any test could observe. The line stays for consumers
+    // who do target ES5 — it is dead here and load-bearing there.
+    // Stryker disable next-line all: equivalent under an esnext target, see the note above
     Object.setPrototypeOf(this, IntemptError.prototype);
   }
 

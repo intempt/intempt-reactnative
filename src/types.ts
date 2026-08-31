@@ -57,6 +57,19 @@ export interface OrderedProduct {
 }
 
 /**
+ * Who is being evaluated.
+ *
+ * `profileId` is the device identifier the native SDK already holds; supplying nothing lets it
+ * fill that in. It is present before and after a person signs in, which is what keeps their
+ * assignment stable across the transition — deriving on the user id re-buckets them mid-session
+ * (EXP-ASSIGN-005).
+ */
+export interface FlagContext {
+  userId?: string;
+  profileId?: string;
+}
+
+/**
  * One recommended product.
  *
  * `attributes` holds whatever catalog columns were requested. The named

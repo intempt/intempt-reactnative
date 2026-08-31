@@ -20,6 +20,7 @@ import {
 import type {
   AutocaptureOptions,
   AutomaticEventOptions,
+  FlagContext,
   IntemptConfig,
   IntemptProperties,
   IntemptValue,
@@ -37,6 +38,7 @@ export {
 export type {
   AutocaptureOptions,
   AutomaticEventOptions,
+  FlagContext,
   IntemptConfig,
   IntemptProperties,
   IntemptValue,
@@ -92,6 +94,10 @@ function encodeValue(value: IntemptValue): unknown {
   if (Array.isArray(value)) {
     return value.map(encodeValue);
   }
+  // EQUIVALENT MUTANT on the null guard. `typeof null === 'object'`, so replacing this operand
+  // with `true` sends null into encodeProperties(null), which returns null — the same value the
+  // fall-through returns, by a different route. No input distinguishes the two.
+  // Stryker disable next-line ConditionalExpression: equivalent, see the note above
   if (value !== null && typeof value === 'object') {
     return encodeProperties(value);
   }
@@ -124,6 +130,40 @@ function requireNonBlank(value: string, field: string): void {
       IntemptErrorCode.MissingConfiguration,
       `${field} must be a non-empty string`,
       { method: 'init' }
+    );
+  }
+}
+
+/**
+ * A flag key the serving endpoint can actually match.
+ *
+ * `CONVENTIONS.md`: a validation mistake throws, a service problem does not. This is the
+ * validation half, and without it the promise was not kept — `variation()` passed anything
+ * straight to the bridge.
+ *
+ * The character class is the server's own: `ExperienceApiChooseRequest.names` is
+ * `Set<@Pattern(regexp = "^[a-zA-Z0-9_-]*$") String>`. Two ways that quantifier lets a caller
+ * error reach production silently, both closed here:
+ *
+ *  - `*` ACCEPTS THE EMPTY STRING, so a blank key is a valid request that matches no experience.
+ *  - A key with a dot or a space is a 400, which the SDK absorbs like any other service failure —
+ *    so a typo returns the caller's default and looks exactly like a flag that is off.
+ *
+ * Both are programming errors the caller can fix, so they fail loudly at the call site.
+ */
+function requireFlagKey(key: string, method: string): void {
+  if (typeof key !== 'string' || key.length === 0) {
+    throw new IntemptError(
+      IntemptErrorCode.MissingConfiguration,
+      'key must be a non-empty string',
+      { method }
+    );
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(key)) {
+    throw new IntemptError(
+      IntemptErrorCode.MissingConfiguration,
+      `key must match /^[a-zA-Z0-9_-]+$/ — received ${JSON.stringify(key)}`,
+      { method }
     );
   }
 }
@@ -378,6 +418,85 @@ export class IntemptInstance {
     return this.call('setFlushInterval', () =>
       NativeIntempt.setFlushInterval(this.instanceName, seconds)
     );
+  }
+
+  // MARK: - Flags
+
+  /**
+   * The value assigned for `key`, or `defaultValue` when the service did not answer.
+   *
+   * Ask for a KEY, never a mode. Whether the key names an experiment, a personalization or a flag
+   * is the platform's business: its serving query filters on channel and status and never on mode.
+   */
+  async variation<T>(key: string, context: FlagContext, defaultValue: T): Promise<T> {
+    requireFlagKey(key, 'variation');
+    if (defaultValue === undefined) {
+      // A default of `undefined` is indistinguishable from omitting one: the absent-value branch
+      // below returns it either way, so the caller cannot tell a served value from a failure.
+      // CONVENTIONS.md calls the default REQUIRED; this is where that is true.
+      throw new IntemptError(
+        IntemptErrorCode.MissingConfiguration,
+        'defaultValue is required — it is what a caller receives when the service does not answer',
+        { method: 'variation' }
+      );
+    }
+
+    const raw = (await this.call('variation', () =>
+      NativeIntempt.variation(
+        this.instanceName,
+        key,
+        context as object,
+        // The default is sent for shape only; the native side never reads it. This layer holds
+        // the real one and applies it below, so a service failure cannot reject into a render.
+        {}
+      )
+    )) as { value?: T };
+
+    return raw?.value === undefined ? defaultValue : raw.value;
+  }
+
+  /** Every key assigned to this person, in one call. */
+  async allFlags(context: FlagContext): Promise<Record<string, unknown>> {
+    return (await this.call('allFlags', () =>
+      NativeIntempt.allFlags(this.instanceName, context as object)
+    )) as Record<string, unknown>;
+  }
+
+  async boolVariation(key: string, context: FlagContext, defaultValue: boolean): Promise<boolean> {
+    const value = await this.variation<unknown>(key, context, defaultValue);
+    // A served value of the wrong type is a misconfiguration, not something to coerce:
+    // Boolean('false') is true, and a silent coercion is indistinguishable from a real answer.
+    return typeof value === 'boolean' ? value : defaultValue;
+  }
+
+  async stringVariation(key: string, context: FlagContext, defaultValue: string): Promise<string> {
+    const value = await this.variation<unknown>(key, context, defaultValue);
+    return typeof value === 'string' ? value : defaultValue;
+  }
+
+  async numberVariation(key: string, context: FlagContext, defaultValue: number): Promise<number> {
+    const value = await this.variation<unknown>(key, context, defaultValue);
+    // EQUIVALENT MUTANT on the typeof operand. Number.isFinite does not coerce — unlike the
+    // global isFinite — so it returns true only for values already of type number, and the
+    // operand cannot change the outcome. It is not removable: Number.isFinite carries no type
+    // predicate, so without it tsc reports "Type 'unknown' is not assignable to type 'number'".
+    // Stryker disable next-line ConditionalExpression: equivalent, see the note above
+    return typeof value === 'number' && Number.isFinite(value) ? value : defaultValue;
+  }
+
+  /**
+   * Resolves immediately.
+   *
+   * Present so the cross-SDK surface is the same everywhere, and so a caller porting from an SDK
+   * that polls a local flag store does not have to remove the call. Evaluation is remote on both
+   * native platforms: each `variation` is a request, so there is no local state to wait for.
+   */
+  waitForInitialization(timeoutMs?: number): Promise<void> {
+    // Not `async`: there is nothing to await, and marking it so only to satisfy a shape trips
+    // require-await. The parameter is part of the cross-SDK signature and is referenced rather
+    // than suppressed — a lint disable is a claim that stops being true if this grows a body.
+    void timeoutMs;
+    return Promise.resolve();
   }
 
   // MARK: - Personalization

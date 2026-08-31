@@ -8,6 +8,7 @@
  */
 
 import corpus from './fixtures/contract-corpus.json';
+import contractMethods from './fixtures/contract-methods.json';
 import { nativeCalls, resetNative } from './setup';
 import {
   init,
@@ -126,7 +127,21 @@ describe('corpus completeness', () => {
       // A one-word "n/a" is not a reason. Exclusions are permanent API
       // decisions and have to survive someone reading them in a year.
       expect(reason.length).toBeGreaterThan(40);
-      expect(method).toBe('doNotCaptureText');
+      // Not a fixed list — that was a snapshot of the day there was one
+      // exclusion, and it broke the moment a second was justified.
+      //
+      // excludedFromBridge carries two senses, which is worth knowing before
+      // adding to it: a SPEC method excused from needing a fixture
+      // (doNotCaptureText), and a CONTRACT method excused from needing a spec
+      // entry because the JS layer derives it (the variation family). The
+      // property both share is that the name is real somewhere — a typo
+      // excuses nothing and would otherwise sit here unnoticed.
+      const known = new Set([
+        ...Object.keys(contractMethods.methods),
+        ...Object.keys(contractMethods.diagnostics ?? {}),
+        ...Object.keys(contractMethods.notBridged ?? {}),
+      ]);
+      expect([...known]).toContain(method);
     }
   });
 });

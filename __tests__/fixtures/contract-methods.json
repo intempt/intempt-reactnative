@@ -16,7 +16,7 @@
     "the local, machine-readable half of a document that lives in another repo."
   ],
   "source": "intempt-swift/docs/SDK-API-CONTRACT.md",
-  "syncedAt": "2026-08-15",
+  "syncedAt": "2026-08-25",
   "methods": {
     "initialize": "init(apiKey, orgId, projectId, sourceId, instanceName)",
     "track": "track(eventTitle, data?) -> Bool",
@@ -47,7 +47,13 @@
     "isAutocaptureRunning": "autocapture.isRunning",
     "setPushToken": "setPushToken(token) -> Bool",
     "trackPushOpen": "trackPushOpen(payload) -> Bool",
-    "trackPushReceived": "trackPushReceived(payload) -> Bool"
+    "trackPushReceived": "trackPushReceived(payload) -> Bool",
+    "variation": "variation(key, context, defaultValue) -> { value }",
+    "allFlags": "allFlags(context) -> Map<key, value>",
+    "boolVariation": "boolVariation(key, context, defaultValue: Bool) -> Bool",
+    "stringVariation": "stringVariation(key, context, defaultValue: String) -> String",
+    "numberVariation": "numberVariation(key, context, defaultValue: Number) -> Number",
+    "waitForInitialization": "waitForInitialization(timeout) -> Void"
   },
   "diagnostics": {
     "getSdkVersion": "Bridged, but not a contract method. Reports the NATIVE SDK's version \u2014 intempt-swift or intempt-android \u2014 which is what someone debugging an integration needs and which no contract method exposes. Kept in its own category rather than notBridged, because it IS on the spec."

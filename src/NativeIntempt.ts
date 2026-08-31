@@ -93,8 +93,19 @@ export interface Spec extends TurboModule {
   getFlushInterval(instanceName: string): Promise<number>;
   setFlushInterval(instanceName: string, seconds: number): Promise<void>;
 
-  // Personalization — feeds only. Experiment assignment is an intemptjs
-  // capability and deliberately absent from the mobile SDKs.
+  // Flags — a mobile SDK runs on a device and is still an `api`-channel consumer,
+  // because there is no visual editor for a native surface: the value is authored
+  // as a payload and the integrator writes the branch.
+  /** Resolves to `{value}`. Never rejects for a service failure. */
+  variation(
+    instanceName: string,
+    key: string,
+    context: Object,
+    defaultValue: Object
+  ): Promise<Object>;
+  allFlags(instanceName: string, context: Object): Promise<Object>;
+
+  // Personalization — feeds.
   products(
     instanceName: string,
     feedId: string,

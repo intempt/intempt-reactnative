@@ -5,11 +5,68 @@ on:
     branches: [main]
   pull_request:
 
+# NO NATIVE JOB BUILDS AGAINST A BRANCH. Both SDKs have published the flag surface —
+# Intempt 0.2.0 on CocoaPods trunk and com.intempt.sdk:intempt-android:3.1.0 on Maven
+# Central — so every job below resolves the same artifacts a consumer resolves.
+#
+# The two INTEMPT_*_REF variables that used to live here pointed every native job at
+# `feature/experiences-flags` of the two SDKs. Four jobs went green that way while the
+# pins this package SHIPS could not compile a line of the bridge. There is deliberately
+# nothing to point at a branch now: the version lives in IntemptReactNative.podspec and
+# android/build.gradle, and ios-typecheck derives it from the podspec rather than keeping
+# a second copy that can drift.
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # EXP-ASSIGN-004 / EXP-ASSIGN-005: the platform decides which variant a person gets.
+  # An SDK that derives its own bucket can disagree with the server, and the same person
+  # is then served differently depending on the channel they arrive through — silently,
+  # because each side is internally consistent. Runs without install so it cannot be
+  # skipped.
+  bucketing:
+    name: Server-only bucketing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: No SDK derives buckets locally (EXP-ASSIGN-004 / EXP-ASSIGN-005)
+        run: node scripts/check-no-local-bucketing.mjs
+        env:
+          GUARD_SRC: src
+
+  # The gate that catches a pin a consumer cannot use. GREEN as of 2026-08-31, when both
+  # SDKs published the flag surface; it was red by design before that, which is what the
+  # pin move to Intempt 0.2.0 / intempt-android 3.1.0 answered.
+  #
+  # It exists because four native jobs once went green against `feature/experiences-flags`
+  # of the two SDKs — a pod from a git branch, and an Android artifact republished into
+  # mavenLocal under the SAME coordinate Maven Central serves — while the pins this package
+  # SHIPS could not compile a line of the bridge, and nothing in CI said so. A consumer's
+  # first build was `cannot find 'FlagContext' in scope`.
+  #
+  # It resolves the shipped podspec and build.gradle pins against the registries a consumer
+  # resolves from, downloads what they select, and greps for the symbol the bridge calls. A
+  # version number is never taken as evidence, so republishing different bytes under an old
+  # coordinate cannot satisfy it.
+  #
+  # Do not tag a release while it is red. Do not mark it continue-on-error to get a green
+  # tick — a gate nobody sees fail is the exact failure this whole job is about.
+  native-pins:
+    name: Shipped native pins resolve to a usable release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Resolve the pins a consumer gets, and check their contents
+        run: node scripts/check-native-pins.mjs
+
   # Runs first and without node_modules. A conformance gate that only works in a
   # fully installed environment is one that gets skipped.
   corpus:
@@ -118,11 +175,20 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Check out intempt-swift at the pinned tag
+      - name: Read the Intempt version this package pins
+        id: pin
+        run: |
+          # DERIVED, never duplicated. A second copy of the version is a second thing to
+          # forget, and "the native jobs are green against an SDK the shipped pin does not
+          # select" is a failure this repo has already had once.
+          v="$(sed -n "s/^[[:space:]]*s\.dependency 'Intempt', '\([^']*\)'.*/\1/p" IntemptReactNative.podspec)"
+          [ -n "$v" ] || { echo "could not read the Intempt pin out of IntemptReactNative.podspec" >&2; exit 1; }
+          echo "swift_tag=v$v" >> "$GITHUB_OUTPUT"
+      - name: Check out intempt-swift at the tag the podspec pins
         uses: actions/checkout@v4
         with:
           repository: intempt/intempt-swift
-          ref: v0.1.0
+          ref: ${{ steps.pin.outputs.swift_tag }}
           path: intempt-swift
       - name: Typecheck the bridge
         run: ./scripts/typecheck-ios.sh "$GITHUB_WORKSPACE/intempt-swift"
@@ -153,14 +219,13 @@ jobs:
         run: |
           npm install
           npm install ../intempt-react-native
-      - name: Add the Intempt pod from git
+      - name: Install pods
         working-directory: HostApp/ios
         run: |
-          # Not on CocoaPods trunk yet; the repository is public so a tagged
-          # git reference resolves without credentials. Remove this once
-          # `pod trunk push` has run — see issue #2.
-          printf "\npod 'Intempt', :git => 'https://github.com/intempt/intempt-swift.git', :tag => 'v0.1.0'\n" \
-            >> Podfile
+          # No Podfile override. Intempt 0.2.0 is on CocoaPods trunk, so the podspec's own
+          # `s.dependency 'Intempt', '0.2.0'` resolves exactly the way a customer's does —
+          # which is the point of this job. An override here is what let four native jobs
+          # pass against a release no consumer could obtain.
           pod install
       - name: Compile
         working-directory: HostApp/ios
@@ -178,8 +243,9 @@ jobs:
   # which is correct. Building it standalone would have tested a shape no
   # integrator ever uses.
   #
-  # intempt-android 3.0.1 is published on Maven Central (2026-08-16), so this
-  # resolves it for real — no local publish/mavenLocal workaround needed.
+  # intempt-android 3.1.0 is published on Maven Central (2026-08-31) and carries the flag
+  # surface, so this resolves the real artifact a consumer resolves — no branch checkout,
+  # no publishToMavenLocal, no repository reordering.
   android-build:
     name: Android build (bare RN host app)
     runs-on: ubuntu-latest

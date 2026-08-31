@@ -22,14 +22,25 @@ Pod::Spec.new do |s|
   s.preserve_paths = 'LICENSE', 'NOTICE', 'README.md', 'package.json'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
 
-  # Pinned exactly, not optimistically. 0.1.0 is intempt-swift's first release:
-  # 311 tests pass and the live contract tests run against production, but it
-  # has no mileage in a shipped customer app. A '~> 0.1' would silently pick up
-  # 0.1.1 the day it exists.
+  # PINNED EXACTLY, to the published release that carries the flag surface.
   #
-  # Published to CocoaPods trunk on 2026-08-16, so this resolves with a plain
-  # `pod install` and the consumer's Podfile needs no :git line.
-  s.dependency 'Intempt', '0.1.0'
+  # This bridge calls FlagContext, variation and allFlags. Trunk serves 0.1.0 and 0.2.0;
+  # 0.1.0 has none of the three and 0.2.0 has all of them — measured against
+  # trunk.cocoapods.org and the sources of tag v0.2.0, not inferred.
+  #
+  # Both earlier pins are recorded because each was wrong in an instructive way. '~> 0.1'
+  # SELECTS 0.1.0, so a consumer got a successful dependency resolution followed by "cannot
+  # find 'FlagContext' in scope" at IntemptReactNative.swift — a compile error inside a
+  # vendored pod, which reads as a broken SDK rather than as a missing release. An exact
+  # '0.1.1' replaced it so resolution would fail by NAME instead; trunk never served 0.1.1,
+  # because intempt-swift shipped the flag surface as 0.2.0.
+  #
+  # Exact rather than '~> 0.2': this bridge compiles against symbols it does not own, so a
+  # new SDK minor should not reach a customer's build before this repo's CI has seen it.
+  #
+  # `npm run check:native-pins` resolves this against trunk on every CI run and downloads
+  # what it selects to confirm the symbol is really in there. Do not tag while it is red.
+  s.dependency 'Intempt', '0.2.0'
 
   # install_modules_dependencies wires React-Core, and on the new architecture
   # also ReactCommon, RCT-Folly, glog and the generated spec. Available in

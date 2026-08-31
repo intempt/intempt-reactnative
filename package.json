@@ -1,6 +1,6 @@
 {
   "name": "@intempt-technologies/react-native",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Intempt SDK for React Native — event tracking, identity, consent and personalization",
   "main": "lib/commonjs/index.js",
   "module": "lib/module/index.js",
@@ -29,7 +29,8 @@
     "mutation": "stryker run",
     "e2e:ios": "./scripts/run-e2e-ios.sh",
     "check:workflows": "python3 scripts/check-workflows.py",
-    "check:pack": "node scripts/check-pack.mjs"
+    "check:pack": "node scripts/check-pack.mjs",
+  "check:native-pins": "node scripts/check-native-pins.mjs"
   },
   "keywords": [
     "intempt",
