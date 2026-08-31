@@ -94,6 +94,10 @@ function encodeValue(value: IntemptValue): unknown {
   if (Array.isArray(value)) {
     return value.map(encodeValue);
   }
+  // EQUIVALENT MUTANT on the null guard. `typeof null === 'object'`, so replacing this operand
+  // with `true` sends null into encodeProperties(null), which returns null — the same value the
+  // fall-through returns, by a different route. No input distinguishes the two.
+  // Stryker disable next-line ConditionalExpression: equivalent, see the note above
   if (value !== null && typeof value === 'object') {
     return encodeProperties(value);
   }
@@ -472,6 +476,11 @@ export class IntemptInstance {
 
   async numberVariation(key: string, context: FlagContext, defaultValue: number): Promise<number> {
     const value = await this.variation<unknown>(key, context, defaultValue);
+    // EQUIVALENT MUTANT on the typeof operand. Number.isFinite does not coerce — unlike the
+    // global isFinite — so it returns true only for values already of type number, and the
+    // operand cannot change the outcome. It is not removable: Number.isFinite carries no type
+    // predicate, so without it tsc reports "Type 'unknown' is not assignable to type 'number'".
+    // Stryker disable next-line ConditionalExpression: equivalent, see the note above
     return typeof value === 'number' && Number.isFinite(value) ? value : defaultValue;
   }
 

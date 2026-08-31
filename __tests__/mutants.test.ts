@@ -607,9 +607,28 @@ describe("a flag key is validated at the call site, not absorbed as a default", 
    * corresponding guard in requireFlagKey is removed.
    */
   it("throws on an empty key rather than sending one the server pattern accepts", async () => {
+    // The code alone did not pin this down. Deleting the length check leaves the empty string to
+    // the regex below, which also rejects it — so the call still threw MissingConfiguration and
+    // five mutants on the guard survived. The MESSAGE is what tells the two branches apart, and
+    // `method` is what proves the detail object was populated rather than left empty.
     const s = await sdk();
     const error = await rejection(s.variation("", {}, "default"));
     expect(error.code).toBe(IntemptErrorCode.MissingConfiguration);
+    expect(error.message).toBe("key must be a non-empty string");
+    expect(error.method).toBe("variation");
+    expect(nativeCalls.some((c) => c.fn === "variation")).toBe(false);
+  });
+
+  it("throws on a non-string key, which the regex would coerce and then accept", async () => {
+    // The typeof half of the guard had nothing behind it. Without it a numeric key reaches
+    // `/^[a-zA-Z0-9_-]+$/.test(123)`, which stringifies to "123" and MATCHES — so a caller
+    // passing the wrong type gets a request for a key they never named instead of an error.
+    const s = await sdk();
+    const error = await rejection(
+      s.variation(123 as unknown as string, {}, "default"),
+    );
+    expect(error.code).toBe(IntemptErrorCode.MissingConfiguration);
+    expect(error.message).toBe("key must be a non-empty string");
     expect(nativeCalls.some((c) => c.fn === "variation")).toBe(false);
   });
 
@@ -618,6 +637,10 @@ describe("a flag key is validated at the call site, not absorbed as a default", 
     const error = await rejection(s.variation("new.checkout", {}, "default"));
     expect(error.code).toBe(IntemptErrorCode.MissingConfiguration);
     expect(error.method).toBe("variation");
+    // Quoting the key back is the whole value of this message — it names the typo.
+    expect(error.message).toBe(
+      'key must match /^[a-zA-Z0-9_-]+$/ \u2014 received "new.checkout"',
+    );
     expect(nativeCalls.some((c) => c.fn === "variation")).toBe(false);
   });
 
@@ -643,6 +666,11 @@ describe("a flag key is validated at the call site, not absorbed as a default", 
       s.variation("k", {}, undefined as unknown as string),
     );
     expect(error.code).toBe(IntemptErrorCode.MissingConfiguration);
+    expect(error.message).toBe(
+      "defaultValue is required \u2014 it is what a caller receives when the service does not answer",
+    );
+    // MissingConfiguration is also what a bad key raises; only `method` separates the two here.
+    expect(error.method).toBe("variation");
     expect(nativeCalls.some((c) => c.fn === "variation")).toBe(false);
   });
 
