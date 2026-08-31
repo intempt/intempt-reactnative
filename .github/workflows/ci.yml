@@ -8,7 +8,7 @@ on:
 # The native SDK refs this bridge compiles against.
 #
 # The published intempt-swift v0.1.0 and intempt-android 3.0.4 both PREDATE the flag
-# surface: this bridge calls FlagContext, variationDetail and allFlags, and none of
+# surface: this bridge calls FlagContext, variation and allFlags, and none of
 # the three exists in either release. Compiling the bridge against a release that
 # lacks the API it calls tests nothing — it only reports that the release is old.
 #
@@ -23,10 +23,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # R36: the platform decides which variant a person gets. An SDK that derives its own
-  # bucket can disagree with the server, and the same person is then served differently
-  # depending on the channel they arrive through — silently, because each side is
-  # internally consistent. Runs without install so it cannot be skipped.
+  # EXP-ASSIGN-004 / EXP-ASSIGN-005: the platform decides which variant a person gets.
+  # An SDK that derives its own bucket can disagree with the server, and the same person
+  # is then served differently depending on the channel they arrive through — silently,
+  # because each side is internally consistent. Runs without install so it cannot be
+  # skipped.
   bucketing:
     name: Server-only bucketing
     runs-on: ubuntu-latest
@@ -35,10 +36,36 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: No SDK derives buckets locally (R36)
+      - name: No SDK derives buckets locally (EXP-ASSIGN-004 / EXP-ASSIGN-005)
         run: node scripts/check-no-local-bucketing.mjs
         env:
           GUARD_SRC: src
+
+  # THIS JOB IS EXPECTED TO BE RED, and that is the correct state of this branch.
+  #
+  # Every other native job here builds against `feature/experiences-flags` of the two
+  # SDKs — a pod from a git branch, and an Android artifact republished into mavenLocal
+  # under the SAME coordinate Maven Central serves. Those four jobs went green while the
+  # pins this package actually SHIPS could not compile a line of the bridge, and nothing
+  # in CI said so. A consumer's first build was `cannot find 'FlagContext' in scope`.
+  #
+  # This job applies none of those overrides. It resolves the shipped podspec and
+  # build.gradle pins against the registries a consumer resolves from, downloads what
+  # they select, and greps for the symbol the bridge calls. It clears on the same day a
+  # consumer's build starts working, and not before.
+  #
+  # Do not tag a release while it is red. Do not mark it continue-on-error to get a green
+  # tick — a gate nobody sees fail is the exact failure this whole job is about.
+  native-pins:
+    name: Shipped native pins resolve to a usable release (RED until both SDKs publish)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Resolve the pins a consumer gets, and check their contents
+        run: node scripts/check-native-pins.mjs
 
   # Runs first and without node_modules. A conformance gate that only works in a
   # fully installed environment is one that gets skipped.
@@ -227,7 +254,7 @@ jobs:
       # Build intempt-android from source into the local Maven repo.
       #
       # android/build.gradle resolves com.intempt.sdk:intempt-android:3.0.4, and the
-      # PUBLISHED 3.0.4 predates the flag surface — no FlagContext, no variationDetail,
+      # PUBLISHED 3.0.4 predates the flag surface — no FlagContext, no variation,
       # no allFlags, which is exactly what this bridge calls. The published artifact
       # cannot compile the code under test, so its failure says nothing about the bridge.
       #

@@ -686,6 +686,6 @@
     "boolVariation": "JS-layer typed narrowing over variation. No native counterpart by design.",
     "stringVariation": "JS-layer typed narrowing over variation. No native counterpart by design.",
     "numberVariation": "JS-layer typed narrowing over variation. No native counterpart by design.",
-    "waitForInitialization": "Resolved against the JS-side instance registry; there is no native call to make."
+    "waitForInitialization": "Resolves immediately: evaluation is remote on both platforms, so there is no local flag store to wait for and no native call to make. Present so the cross-SDK surface is identical everywhere."
   }
 }

@@ -65,7 +65,7 @@ echo "==> expo prebuild (generates the native iOS project)"
 npx expo prebuild --platform ios --clean --no-install
 # Point the Intempt pod at the intempt-swift ref this bridge is built against.
 #
-# The bridge calls FlagContext, variationDetail and allFlags. The published pod
+# The bridge calls FlagContext, variation and allFlags. The published pod
 # (0.1.0 on CocoaPods trunk) predates all three, so a plain `pod install` builds
 # against a release that cannot compile the code under test — which is exactly how
 # this job failed with "cannot find 'FlagContext' in scope" at

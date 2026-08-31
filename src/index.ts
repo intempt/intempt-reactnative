@@ -131,6 +131,40 @@ function requireNonBlank(value: string, field: string): void {
 }
 
 /**
+ * A flag key the serving endpoint can actually match.
+ *
+ * `CONVENTIONS.md`: a validation mistake throws, a service problem does not. This is the
+ * validation half, and without it the promise was not kept — `variation()` passed anything
+ * straight to the bridge.
+ *
+ * The character class is the server's own: `ExperienceApiChooseRequest.names` is
+ * `Set<@Pattern(regexp = "^[a-zA-Z0-9_-]*$") String>`. Two ways that quantifier lets a caller
+ * error reach production silently, both closed here:
+ *
+ *  - `*` ACCEPTS THE EMPTY STRING, so a blank key is a valid request that matches no experience.
+ *  - A key with a dot or a space is a 400, which the SDK absorbs like any other service failure —
+ *    so a typo returns the caller's default and looks exactly like a flag that is off.
+ *
+ * Both are programming errors the caller can fix, so they fail loudly at the call site.
+ */
+function requireFlagKey(key: string, method: string): void {
+  if (typeof key !== 'string' || key.length === 0) {
+    throw new IntemptError(
+      IntemptErrorCode.MissingConfiguration,
+      'key must be a non-empty string',
+      { method }
+    );
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(key)) {
+    throw new IntemptError(
+      IntemptErrorCode.MissingConfiguration,
+      `key must match /^[a-zA-Z0-9_-]+$/ — received ${JSON.stringify(key)}`,
+      { method }
+    );
+  }
+}
+
+/**
  * One configured Intempt instance.
  *
  * Obtained from `Intempt.init()`. Multiple named instances coexist; each has
@@ -391,6 +425,18 @@ export class IntemptInstance {
    * is the platform's business: its serving query filters on channel and status and never on mode.
    */
   async variation<T>(key: string, context: FlagContext, defaultValue: T): Promise<T> {
+    requireFlagKey(key, 'variation');
+    if (defaultValue === undefined) {
+      // A default of `undefined` is indistinguishable from omitting one: the absent-value branch
+      // below returns it either way, so the caller cannot tell a served value from a failure.
+      // CONVENTIONS.md calls the default REQUIRED; this is where that is true.
+      throw new IntemptError(
+        IntemptErrorCode.MissingConfiguration,
+        'defaultValue is required — it is what a caller receives when the service does not answer',
+        { method: 'variation' }
+      );
+    }
+
     const raw = (await this.call('variation', () =>
       NativeIntempt.variation(
         this.instanceName,

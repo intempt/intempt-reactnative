@@ -62,16 +62,12 @@ enum TypeBridge {
         return output
     }
 
-    /// Decodes an APNs device token from its hex representation.
-    ///
-    /// `Data` does not cross the bridge, so React Native surfaces the token as
-    /// hex. Returns nil on odd length or a non-hex character rather than
-    /// producing a truncated token, which would register the device for pushes
-    /// it never receives.
-    /// `JSONValue` to something the bridge can carry.
+    /// Converts a `JSONValue` to something the bridge can carry.
     ///
     /// The inverse of `value(_:)`. A flag payload is arbitrary JSON authored in the studio, so it
     /// crosses as-is rather than being flattened into a known shape — the caller branches on it.
+    /// Objects and arrays recurse; `putValue` on the Kotlin side performs the same traversal, and
+    /// the two platforms must not disagree about the same payload.
     static func any(from value: JSONValue) -> Any {
         switch value {
         case .string(let s): return s
@@ -83,6 +79,12 @@ enum TypeBridge {
         }
     }
 
+    /// Decodes an APNs device token from its hex representation.
+    ///
+    /// `Data` does not cross the bridge, so React Native surfaces the token as
+    /// hex. Returns nil on odd length or a non-hex character rather than
+    /// producing a truncated token, which would register the device for pushes
+    /// it never receives.
     static func data(fromHex hex: String) -> Data? {
         let characters = Array(hex)
         guard !characters.isEmpty, characters.count % 2 == 0 else { return nil }

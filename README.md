@@ -166,14 +166,60 @@ await intempt.isOptedIn();
 gathered before the objection to be uploaded after it. Queued **consent** records are
 preserved — they are the evidence of the decision.
 
+### Feature flags
+
+```ts
+// Ask for a KEY, never a mode. Whether the key names an experiment, a personalization
+// or a flag is the platform's business — its serving query filters on channel and
+// status and never on mode, so this call does not change when that does.
+const on = await intempt.boolVariation('new_checkout', { userId: 'user-123' }, false);
+
+const copy = await intempt.stringVariation('checkout_copy', { userId: 'user-123' }, 'Buy now');
+const limit = await intempt.numberVariation('free_shipping', { userId: 'user-123' }, 50);
+
+// A payload is arbitrary JSON. You branch on it; there is no visual editor for a
+// native surface, so the value is authored as a payload in the studio.
+const theme = await intempt.variation<{ accent: string }>(
+  'checkout_theme',
+  { userId: 'user-123' },
+  { accent: '#000' }
+);
+
+const all = await intempt.allFlags({ userId: 'user-123' });
+```
+
+**`defaultValue` is required, and it is a real decision.** It is what renders when Intempt
+cannot be reached — a 5xx, a timeout, an unknown key. Choose the behaviour you already have.
+A flag lookup never throws for a service failure on either platform.
+
+**A wrong-typed value falls back; it is never coerced.** A flag configured as a string and
+read with `boolVariation` returns your default, not `true`. `Boolean('false')` is `true`, and
+a silent coercion is indistinguishable from a deliberate value.
+
+**A programming error does throw.** A blank key, a key outside `^[a-zA-Z0-9_-]+$` (the server's
+own pattern), or an `undefined` default is something you can fix, so it fails at the call site
+rather than quietly returning a default that looks like a flag being off.
+
+`FlagContext` takes `userId` and `profileId`, both optional. **Omit `profileId`** and the native
+SDK supplies the device identifier it already holds — the one that survives sign-in, and
+therefore the one that keeps a person's assignment stable across it.
+
+`variationDetail` is deliberately absent. See `docs/CONVENTIONS.md` for why, and for the
+requirement that is still open at the platform.
+
+> **Not installable yet.** Both native pins resolve to published releases that predate the flag
+> surface: `intempt-swift` 0.1.0 on CocoaPods trunk, and `com.intempt.sdk:intempt-android:3.0.4`
+> on Maven Central. Until each publishes a release containing it, a consumer's first build fails
+> with `cannot find 'FlagContext' in scope`. `npm run check:native-pins` measures both registries
+> and fails while that is true.
+
 ### Recommendations
 
 ```ts
 const products = await intempt.products({ feedId: 'feed-1', count: 10 });
 ```
 
-Experiment and personalization assignment is **not** in the mobile SDKs — it is an
-intemptjs capability. Recommendation feeds are a different thing and are here.
+Recommendation feeds are a different thing from flags and from assignment, and are here.
 
 `products()` defaults `fields` to `productId`, `title`, `price`, `imageUrl`, `url`.
 

@@ -579,7 +579,7 @@ describe("the typed flag helpers narrow rather than coerce", () => {
     await expect(s.numberVariation("k", {}, 3)).resolves.toBe(3);
   });
 
-  it("variation returns the detail value, not the detail", async () => {
+  it("variation unwraps the served value from the bridge envelope", async () => {
     const s = await sdk();
     served("served-value");
     await expect(s.variation("k", {}, "default")).resolves.toBe("served-value");
@@ -592,5 +592,72 @@ describe("the typed flag helpers narrow rather than coerce", () => {
     expect(nativeCalls.some((c) => c.fn === "waitForInitialization")).toBe(
       false,
     );
+  });
+});
+
+describe("a flag key is validated at the call site, not absorbed as a default", () => {
+  /**
+   * CONVENTIONS.md: "A validation mistake throws; a service problem does not." Only the second
+   * half was true — variation() passed any key straight to the bridge.
+   *
+   * Why this is not cosmetic. The server pattern is `^[a-zA-Z0-9_-]*$`, whose `*` accepts the
+   * EMPTY STRING, and a key carrying a dot or a space is a 400. Both come back through the same
+   * absorb path as a 5xx, so a typo returns the caller's default and is indistinguishable at the
+   * call site from a flag that is deliberately off. Each assertion below fails if the
+   * corresponding guard in requireFlagKey is removed.
+   */
+  it("throws on an empty key rather than sending one the server pattern accepts", async () => {
+    const s = await sdk();
+    const error = await rejection(s.variation("", {}, "default"));
+    expect(error.code).toBe(IntemptErrorCode.MissingConfiguration);
+    expect(nativeCalls.some((c) => c.fn === "variation")).toBe(false);
+  });
+
+  it("throws on a key with a dot, which is a 400 the SDK would absorb", async () => {
+    const s = await sdk();
+    const error = await rejection(s.variation("new.checkout", {}, "default"));
+    expect(error.code).toBe(IntemptErrorCode.MissingConfiguration);
+    expect(error.method).toBe("variation");
+    expect(nativeCalls.some((c) => c.fn === "variation")).toBe(false);
+  });
+
+  it("throws on a key with a space", async () => {
+    const s = await sdk();
+    const error = await rejection(s.variation("new checkout", {}, "default"));
+    expect(error.code).toBe(IntemptErrorCode.MissingConfiguration);
+  });
+
+  it("accepts the characters the server pattern does", async () => {
+    const s = await sdk();
+    nativeReturns.variation = { value: "on" };
+    await expect(
+      s.variation("New_checkout-2", {}, "default"),
+    ).resolves.toBe("on");
+  });
+
+  it("throws when defaultValue is undefined, which the absent branch cannot distinguish", async () => {
+    // `raw?.value === undefined ? defaultValue : raw.value` returns undefined either way, so a
+    // caller could not tell a served value from a service failure. The default is REQUIRED.
+    const s = await sdk();
+    const error = await rejection(
+      s.variation("k", {}, undefined as unknown as string),
+    );
+    expect(error.code).toBe(IntemptErrorCode.MissingConfiguration);
+    expect(nativeCalls.some((c) => c.fn === "variation")).toBe(false);
+  });
+
+  it("validates before the bridge for every typed helper too", async () => {
+    // The helpers delegate to variation, so the guard has to be inherited rather than duplicated.
+    const s = await sdk();
+    for (const call of [
+      () => s.boolVariation("bad key", {}, false),
+      () => s.stringVariation("bad key", {}, "x"),
+      () => s.numberVariation("bad key", {}, 0),
+    ]) {
+      expect((await rejection(call())).code).toBe(
+        IntemptErrorCode.MissingConfiguration,
+      );
+    }
+    expect(nativeCalls.some((c) => c.fn === "variation")).toBe(false);
   });
 });

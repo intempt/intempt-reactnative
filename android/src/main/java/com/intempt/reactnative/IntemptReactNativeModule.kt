@@ -5,10 +5,12 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
+import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.WritableMap
 import com.intempt.core.types.FlagContext
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -429,7 +431,16 @@ class IntemptReactNativeModule(
                     },
                 )
             } catch (e: Exception) {
-                promise.reject("flag_evaluation_failed", e.message, e)
+                // A service problem is ABSORBED, never rejected. CONVENTIONS.md, the doc comment
+                // above and src/NativeIntempt.ts all promise the caller's default on a failure,
+                // and the iOS path has no rejecting branch at all. Rejecting here propagated a
+                // 5xx out of variation() into the host app's render, which is the opposite of
+                // what a kill switch is for. Resolving an empty map leaves `value` absent, and
+                // absent is exactly what makes the JS layer apply the caller's default.
+                //
+                // Absorbed is not silent: the failure is logged so it stays diagnosable.
+                Log.w(NAME, "variation(" + key + ") failed; resolving to the caller's default", e)
+                promise.resolve(Arguments.createMap())
             }
         }
     }
@@ -451,22 +462,63 @@ class IntemptReactNativeModule(
                     },
                 )
             } catch (e: Exception) {
-                promise.reject("flag_evaluation_failed", e.message, e)
+                // Absorbed for the same reason as variation() above: the JS layer holds the
+                // caller's default and an empty map is what makes it apply.
+                Log.w(NAME, "allFlags failed; resolving to the caller's defaults", e)
+                promise.resolve(Arguments.createMap())
             }
         }
     }
 
-    /** A flag payload is arbitrary JSON, so it crosses with its type preserved. */
-    private fun putValue(map: WritableMap, key: String, value: Any) {
+    /**
+     * A flag payload is arbitrary JSON, so it crosses with its type preserved.
+     *
+     * Objects and arrays RECURSE. Kotlin's `toString()` on a Map renders `{a=1, b=2}`, which is
+     * not JSON and does not parse, so a caller reading `variation<{theme: string}>(...)` used to
+     * get an object on iOS and a broken string here. `TypeBridge.any(from:)` recurses on the
+     * Swift side; this is the same traversal, and the two platforms must not disagree about the
+     * same payload.
+     */
+    private fun putValue(map: WritableMap, key: String, value: Any?) {
         when (value) {
+            null -> map.putNull(key)
             is Boolean -> map.putBoolean(key, value)
             is Int -> map.putInt(key, value)
-            is Long -> map.putDouble(key, value.toDouble())
             is Double -> map.putDouble(key, value)
+            // Long, Float and any other Number cross as a double: the bridge carries no wider
+            // numeric type, and putString would change the payload's JSON type.
+            is Number -> map.putDouble(key, value.toDouble())
             is String -> map.putString(key, value)
+            is Map<*, *> -> map.putMap(key, writableMap(value))
+            is Iterable<*> -> map.putArray(key, writableArray(value))
+            is Array<*> -> map.putArray(key, writableArray(value.asIterable()))
             else -> map.putString(key, value.toString())
         }
     }
+
+    /** The array half of [putValue]. Same ordering, same recursion. */
+    private fun pushValue(array: WritableArray, value: Any?) {
+        when (value) {
+            null -> array.pushNull()
+            is Boolean -> array.pushBoolean(value)
+            is Int -> array.pushInt(value)
+            is Double -> array.pushDouble(value)
+            is Number -> array.pushDouble(value.toDouble())
+            is String -> array.pushString(value)
+            is Map<*, *> -> array.pushMap(writableMap(value))
+            is Iterable<*> -> array.pushArray(writableArray(value))
+            is Array<*> -> array.pushArray(writableArray(value.asIterable()))
+            else -> array.pushString(value.toString())
+        }
+    }
+
+    private fun writableMap(source: Map<*, *>): WritableMap =
+        Arguments.createMap().apply {
+            source.forEach { (k, v) -> putValue(this, k.toString(), v) }
+        }
+
+    private fun writableArray(source: Iterable<*>): WritableArray =
+        Arguments.createArray().apply { source.forEach { pushValue(this, it) } }
 
     // ---------------------------------------------------------------------
     // Personalization

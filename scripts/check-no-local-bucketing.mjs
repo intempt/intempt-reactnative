@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 /**
- * R36: bucket derivation is server-only.
+ * EXP-ASSIGN-004 / EXP-ASSIGN-005: bucket derivation is server-only.
+ *
+ * EXP-ASSIGN-004 (H) — rollout boundaries are exact; the served range must not be off by one
+ * bucket at either end. EXP-ASSIGN-005 (H) — a person's value does not change when they sign
+ * in, because it derives from one identifier the caller holds constant. A second derivation
+ * living in an SDK can satisfy neither: it is off-by-one independently of the server, and it
+ * re-buckets on whatever identifier that SDK happens to hold.
+ *
+ * Both IDs are in brain `product/specs/experiences/experiences-spec.md` on `origin/main`.
  *
  * The platform decides which variant a person gets, by hashing (experienceId, identifier) and
  * taking the result modulo the bucket count. No SDK may do that arithmetic itself.
@@ -72,7 +80,7 @@ for (const r of roots) {
 const problems = [];
 if (hits.length) {
   problems.push(
-    `bucket derivation must be server-only (R36) — ${hits.length} occurrence(s):\n    ` +
+    `bucket derivation must be server-only (EXP-ASSIGN-004 / EXP-ASSIGN-005) — ${hits.length} occurrence(s):\n    ` +
       hits.join('\n    ')
   );
 }
