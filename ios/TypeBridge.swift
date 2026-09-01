@@ -62,6 +62,23 @@ enum TypeBridge {
         return output
     }
 
+    /// Converts a `JSONValue` to something the bridge can carry.
+    ///
+    /// The inverse of `value(_:)`. A flag payload is arbitrary JSON authored in the studio, so it
+    /// crosses as-is rather than being flattened into a known shape — the caller branches on it.
+    /// Objects and arrays recurse; `putValue` on the Kotlin side performs the same traversal, and
+    /// the two platforms must not disagree about the same payload.
+    static func any(from value: JSONValue) -> Any {
+        switch value {
+        case .string(let s): return s
+        case .number(let n): return n
+        case .bool(let b): return b
+        case .object(let o): return o.mapValues { any(from: $0) }
+        case .array(let a): return a.map { any(from: $0) }
+        case .null: return NSNull()
+        }
+    }
+
     /// Decodes an APNs device token from its hex representation.
     ///
     /// `Data` does not cross the bridge, so React Native surfaces the token as

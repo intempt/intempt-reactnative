@@ -631,9 +631,61 @@
           }
         ]
       }
+    },
+    {
+      "method": "variation",
+      "js": {
+        "fn": "variation",
+        "args": [
+          "checkout_v2",
+          {
+            "userId": "u-1",
+            "profileId": "p-1"
+          },
+          false
+        ]
+      },
+      "native": {
+        "fn": "variation",
+        "args": [
+          "default",
+          "checkout_v2",
+          {
+            "userId": "u-1",
+            "profileId": "p-1"
+          },
+          {}
+        ]
+      }
+    },
+    {
+      "method": "allFlags",
+      "js": {
+        "fn": "allFlags",
+        "args": [
+          {
+            "userId": "u-1",
+            "profileId": "p-1"
+          }
+        ]
+      },
+      "native": {
+        "fn": "allFlags",
+        "args": [
+          "default",
+          {
+            "userId": "u-1",
+            "profileId": "p-1"
+          }
+        ]
+      }
     }
   ],
   "excludedFromBridge": {
-    "doNotCaptureText": "Takes an Android View. No cross-platform meaning and no bridge representation. Android-only, absent from the JavaScript surface entirely rather than exposed and broken. The only sanctioned permanent exception."
+    "doNotCaptureText": "Takes an Android View. No cross-platform meaning and no bridge representation. Android-only, absent from the JavaScript surface entirely rather than exposed and broken. The only sanctioned permanent exception.",
+    "boolVariation": "JS-layer typed narrowing over variation. No native counterpart by design.",
+    "stringVariation": "JS-layer typed narrowing over variation. No native counterpart by design.",
+    "numberVariation": "JS-layer typed narrowing over variation. No native counterpart by design.",
+    "waitForInitialization": "Resolves immediately: evaluation is remote on both platforms, so there is no local flag store to wait for and no native call to make. Present so the cross-SDK surface is identical everywhere."
   }
 }

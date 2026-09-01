@@ -125,6 +125,38 @@ export default function App(): React.JSX.Element {
         ['products', () => sdk
             .products({ feedId: 'demo-feed', count: 3 })
             .then((p: unknown[]) => `${p.length} items`)],
+
+        // Flags. Ask for a KEY — whether it names an experiment, a personalization or a flag is
+        // the platform's business, and these calls do not change when that does.
+        //
+        // The default is not optional and it is a real decision: it is what renders when Intempt
+        // cannot be reached. Choose the behaviour you already have.
+        // Every public flag method is exercised here. The example is a GATE, not a sample: a
+        // method the native SDKs make internal fails this file's typecheck in CI and nowhere
+        // else, so a method absent from this list is a method with no gate at all.
+        ['waitForInitialization', () => sdk
+            .waitForInitialization(5000)
+            .then(() => 'ready')],
+
+        ['variation', () => sdk
+            .variation<{ theme?: string }>('new_checkout', { userId: 'user-123' }, {})
+            .then((v: { theme?: string }) => `new_checkout payload = ${JSON.stringify(v)}`)],
+
+        ['boolVariation', () => sdk
+            .boolVariation('new_checkout', { userId: 'user-123' }, false)
+            .then((on: boolean) => `new_checkout = ${on}`)],
+
+        ['stringVariation', () => sdk
+            .stringVariation('checkout_copy', { userId: 'user-123' }, 'Buy now')
+            .then((copy: string) => `checkout_copy = ${copy}`)],
+
+        ['numberVariation', () => sdk
+            .numberVariation('free_shipping_threshold', { userId: 'user-123' }, 50)
+            .then((n: number) => `free_shipping_threshold = ${n}`)],
+
+        ['allFlags', () => sdk
+            .allFlags({ userId: 'user-123' })
+            .then((f: Record<string, unknown>) => `${Object.keys(f).length} key(s)`)],
       ]
     : [];
 

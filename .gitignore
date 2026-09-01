@@ -16,3 +16,8 @@ ios/*.xcworkspace
 # mutation + e2e output
 reports/
 .stryker-tmp/
+
+# The example app is installed with 'npm install' in CI, never 'npm ci', so its lockfile
+# is not needed to build it — and at 7,855 lines it was 89% of this PR's diff and pure noise
+# in review. The package itself keeps its lockfile; only the example's is ignored.
+example/package-lock.json

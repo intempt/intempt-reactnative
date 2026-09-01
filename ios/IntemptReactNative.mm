@@ -167,6 +167,22 @@ RCT_EXTERN_METHOD(setFlushInterval
                   : (RCTPromiseResolveBlock)resolve rejecter
                   : (RCTPromiseRejectBlock)reject)
 
+// MARK: - Flags
+
+RCT_EXTERN_METHOD(variation
+                  : (NSString *)instanceName key
+                  : (NSString *)key context
+                  : (NSDictionary *)context defaultValue
+                  : (NSDictionary *)defaultValue resolver
+                  : (RCTPromiseResolveBlock)resolve rejecter
+                  : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(allFlags
+                  : (NSString *)instanceName context
+                  : (NSDictionary *)context resolver
+                  : (RCTPromiseResolveBlock)resolve rejecter
+                  : (RCTPromiseRejectBlock)reject)
+
 // MARK: - Personalization
 
 RCT_EXTERN_METHOD(products

@@ -1,8 +1,16 @@
 package com.intempt.reactnative
 
-
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import com.facebook.react.bridge.WritableArray
+import com.facebook.react.bridge.WritableMap
+import com.intempt.core.types.FlagContext
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -44,6 +52,18 @@ class IntemptReactNativeModule(
 ) : ReactContextBaseJavaModule(reactContext) {
 
     override fun getName(): String = NAME
+
+    /**
+     * intempt-android's flag methods are `suspend`. This module had no coroutine machinery
+     * before; the alternative was runBlocking, which parks a React Native worker for the length
+     * of a network round trip. SupervisorJob so one failed evaluation cannot cancel the scope.
+     */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override fun invalidate() {
+        scope.cancel()
+        super.invalidate()
+    }
 
     /** Rejects a contract method intempt-android does not expose. */
     private fun unsupported(promise: Promise, method: String, detail: String) {
@@ -378,6 +398,135 @@ class IntemptReactNativeModule(
             it.flushInterval = seconds.toInt()
             promise.resolve(null)
         }
+
+    // ---------------------------------------------------------------------
+    // Flags
+    // ---------------------------------------------------------------------
+
+    /**
+     * A native SDK runs on a device and is still an `api`-channel consumer: there is no visual
+     * editor for a native surface, so the value is authored as a payload and the integrator writes
+     * the branch.
+     *
+     * intempt-android's flag methods are `suspend`, so they are launched on [scope] rather than
+     * blocking the bridge thread. This module had no coroutine machinery before; the alternative
+     * was runBlocking, which parks a React Native worker for the length of a network round trip.
+     *
+     * Never rejects for a service failure. The JS layer holds the caller's default and applies it
+     * when `value` comes back absent, so a flag lookup cannot throw into a host app's render.
+     */
+    @ReactMethod
+    fun variation(
+        instanceName: String,
+        key: String,
+        context: ReadableMap,
+        defaultValue: ReadableMap,
+        promise: Promise,
+    ) = withInstance(instanceName, "variation", promise) { instance ->
+        scope.launch {
+            try {
+                val value =
+                    instance.variation(
+                        key,
+                        ReadableMapConverter.toFlagContext(context),
+                        null,
+                    )
+                promise.resolve(
+                    Arguments.createMap().apply {
+                        // Absent and null are the same to the JS layer, which then applies the
+                        // caller's default. Encoding null as a value would defeat that.
+                        value?.let { putValue(this, "value", it) }
+                    },
+                )
+            } catch (e: Exception) {
+                // A service problem is ABSORBED, never rejected. CONVENTIONS.md, the doc comment
+                // above and src/NativeIntempt.ts all promise the caller's default on a failure,
+                // and the iOS path has no rejecting branch at all. Rejecting here propagated a
+                // 5xx out of variation() into the host app's render, which is the opposite of
+                // what a kill switch is for. Resolving an empty map leaves `value` absent, and
+                // absent is exactly what makes the JS layer apply the caller's default.
+                //
+                // Absorbed is not silent: the failure is logged so it stays diagnosable.
+                Log.w(NAME, "variation(" + key + ") failed; resolving to the caller's default", e)
+                promise.resolve(Arguments.createMap())
+            }
+        }
+    }
+
+    @ReactMethod
+    fun allFlags(
+        instanceName: String,
+        context: ReadableMap,
+        promise: Promise,
+    ) = withInstance(instanceName, "allFlags", promise) { instance ->
+        scope.launch {
+            try {
+                val values = instance.allFlags(ReadableMapConverter.toFlagContext(context))
+                promise.resolve(
+                    Arguments.createMap().apply {
+                        values.forEach { (name, value) ->
+                            if (value == null) putNull(name) else putValue(this, name, value)
+                        }
+                    },
+                )
+            } catch (e: Exception) {
+                // Absorbed for the same reason as variation() above: the JS layer holds the
+                // caller's default and an empty map is what makes it apply.
+                Log.w(NAME, "allFlags failed; resolving to the caller's defaults", e)
+                promise.resolve(Arguments.createMap())
+            }
+        }
+    }
+
+    /**
+     * A flag payload is arbitrary JSON, so it crosses with its type preserved.
+     *
+     * Objects and arrays RECURSE. Kotlin's `toString()` on a Map renders `{a=1, b=2}`, which is
+     * not JSON and does not parse, so a caller reading `variation<{theme: string}>(...)` used to
+     * get an object on iOS and a broken string here. `TypeBridge.any(from:)` recurses on the
+     * Swift side; this is the same traversal, and the two platforms must not disagree about the
+     * same payload.
+     */
+    private fun putValue(map: WritableMap, key: String, value: Any?) {
+        when (value) {
+            null -> map.putNull(key)
+            is Boolean -> map.putBoolean(key, value)
+            is Int -> map.putInt(key, value)
+            is Double -> map.putDouble(key, value)
+            // Long, Float and any other Number cross as a double: the bridge carries no wider
+            // numeric type, and putString would change the payload's JSON type.
+            is Number -> map.putDouble(key, value.toDouble())
+            is String -> map.putString(key, value)
+            is Map<*, *> -> map.putMap(key, writableMap(value))
+            is Iterable<*> -> map.putArray(key, writableArray(value))
+            is Array<*> -> map.putArray(key, writableArray(value.asIterable()))
+            else -> map.putString(key, value.toString())
+        }
+    }
+
+    /** The array half of [putValue]. Same ordering, same recursion. */
+    private fun pushValue(array: WritableArray, value: Any?) {
+        when (value) {
+            null -> array.pushNull()
+            is Boolean -> array.pushBoolean(value)
+            is Int -> array.pushInt(value)
+            is Double -> array.pushDouble(value)
+            is Number -> array.pushDouble(value.toDouble())
+            is String -> array.pushString(value)
+            is Map<*, *> -> array.pushMap(writableMap(value))
+            is Iterable<*> -> array.pushArray(writableArray(value))
+            is Array<*> -> array.pushArray(writableArray(value.asIterable()))
+            else -> array.pushString(value.toString())
+        }
+    }
+
+    private fun writableMap(source: Map<*, *>): WritableMap =
+        Arguments.createMap().apply {
+            source.forEach { (k, v) -> putValue(this, k.toString(), v) }
+        }
+
+    private fun writableArray(source: Iterable<*>): WritableArray =
+        Arguments.createArray().apply { source.forEach { pushValue(this, it) } }
 
     // ---------------------------------------------------------------------
     // Personalization

@@ -60,11 +60,83 @@ if (specMethods.length === 0) {
 // contract method is never bridged at all. Autocapture was added to the
 // contract and shipped absent from this package with the gate passing.
 const contractMethods = Object.keys(contract.methods);
-const unbridged = contractMethods.filter((m) => !specMethods.includes(m));
+const unbridged = contractMethods.filter(
+  (m) => !specMethods.includes(m) && !excluded.has(m)
+);
 if (unbridged.length) {
   problems.push(
     `contract methods absent from the TurboModule spec: ${unbridged.join(', ')}`
   );
+}
+
+// excludedFromBridge is an escape hatch, so it needs a reverse check or it
+// becomes a place to hide a genuinely missing method. A contract method excused
+// from the bridge must still be implemented in the JS layer — that is the whole
+// claim being made about it. Without this, adding a name to excludedFromBridge
+// silently deletes its coverage.
+//
+// A NAME IS NOT AN IMPLEMENTATION. An earlier version of this check was a regex for the
+// definition line, which an empty method satisfies — so `foo() {}` would have discharged the
+// claim being made about `foo`. It now brace-matches the body and requires a statement in it.
+const jsLayer = readFileSync(join(root, 'src/index.ts'), 'utf8');
+
+/**
+ * The body of `name`'s definition in `source`, or null when it has none.
+ *
+ * Brace-matched rather than regexed: a method body contains braces, so a lazy `{...}` match
+ * stops at the first nested one and reports a real implementation as empty.
+ */
+function methodBody(source, name) {
+  const signature = new RegExp(`^\\s+(async\\s+)?${name}\\s*[(<]`, 'm');
+  const at = source.search(signature);
+  if (at === -1) return null;
+
+  const open = source.indexOf('{', at);
+  if (open === -1) return null;
+
+  let depth = 0;
+  for (let i = open; i < source.length; i += 1) {
+    if (source[i] === '{') depth += 1;
+    else if (source[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return source.slice(open + 1, i);
+    }
+  }
+  return null;
+}
+
+/** Strips line and block comments so a body of pure commentary reads as empty. */
+function withoutComments(body) {
+  return body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '').trim();
+}
+
+const unimplemented = [];
+const hollow = [];
+for (const m of contractMethods) {
+  if (!excluded.has(m)) continue;
+  const body = methodBody(jsLayer, m);
+  if (body === null) unimplemented.push(m);
+  else if (withoutComments(body).length === 0) hollow.push(m);
+}
+if (unimplemented.length) {
+  problems.push(
+    `excluded from the bridge but not implemented in src/index.ts either: ` +
+      `${unimplemented.join(', ')}`
+  );
+}
+if (hollow.length) {
+  problems.push(
+    `excluded from the bridge and implemented as an EMPTY body in src/index.ts, so the ` +
+      `exclusion discharges nothing: ${hollow.join(', ')}`
+  );
+}
+
+// And every exclusion states why, so the next reader can judge it.
+const unexplained = [...excluded].filter(
+  (m) => !String(corpus.excludedFromBridge[m] ?? '').trim()
+);
+if (unexplained.length) {
+  problems.push(`excludedFromBridge entries with no reason: ${unexplained.join(', ')}`);
 }
 
 // And the reverse, so the spec cannot grow a method the contract never agreed
