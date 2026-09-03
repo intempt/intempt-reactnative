@@ -66,9 +66,14 @@ dependencies {
   // — the guarantees this bridge's e2e probe asserts (empty-identity-after-init
   // was an intermittent cold-device failure on 3.0.2/3.0.3).
   //
-  // 3.1.0 is the release this bridge requires: FlagContext, variation and allFlags
-  // arrive there and are absent from every earlier version, 3.0.4 included. Published
-  // on Maven Central 2026-08-31 and verified by `npm run check:native-pins`, which
-  // downloads the sources jar rather than trusting the version number.
-  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '3.1.0'}"
+  // 3.1.0 carried FlagContext, variation and allFlags, absent from every earlier version.
+  //
+  // 4.0.0 is the release this bridge now requires: this PR's Kotlin bridge calls
+  // IntemptRuntimeOptions and the 4-argument Intempt.initialize(context, credentials,
+  // instanceName, options) overload, both absent from 3.1.0 and added in 4.0.0 alongside
+  // the BREAKING removal of alias()/AliasModel/AliasEvent (unrelated to this bridge, which
+  // never called alias()). Published on Maven Central 2026-09-03 and verified by
+  // `npm run check:native-pins`, which downloads the sources jar rather than trusting the
+  // version number.
+  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '4.0.0'}"
 }
