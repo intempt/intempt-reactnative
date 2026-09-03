@@ -166,24 +166,6 @@
       "note": "accountAttributes, not userAttributes. The deprecated Obj-C SDK named this parameter userAttributes while sending an account."
     },
     {
-      "method": "alias",
-      "js": {
-        "fn": "alias",
-        "args": [
-          "user-1",
-          "anon-9"
-        ]
-      },
-      "native": {
-        "fn": "alias",
-        "args": [
-          "default",
-          "user-1",
-          "anon-9"
-        ]
-      }
-    },
-    {
       "method": "record",
       "js": {
         "fn": "record",

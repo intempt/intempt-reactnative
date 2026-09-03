@@ -261,13 +261,6 @@ export class IntemptInstance {
     );
   }
 
-  /** Merges two user identities. */
-  alias(userId: string, anotherUserId: string): Promise<boolean> {
-    return this.call('alias', () =>
-      NativeIntempt.alias(this.instanceName, userId, anotherUserId)
-    );
-  }
-
   /**
    * Records an event against a user, an account, or both.
    *

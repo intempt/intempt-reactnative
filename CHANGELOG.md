@@ -4,6 +4,17 @@
 
 Feature flags: read a value by key from the same serving endpoint the rest of Experiences uses.
 
+### Removed
+
+- **BREAKING:** `alias(userId, anotherUserId)`. Linking two user identities is the CDP's job,
+  not the caller's: identity resolution already converges two user ids the moment they share
+  any identifier, so `alias` only reached the case where two ids never co-occur at all — an
+  id-scheme migration, which belongs in a server-side backfill. A wrong call permanently fused
+  two real people and there is no unmerge. `identify` is unchanged and remains the stitch
+  trigger. Removed on all three sides of the bridge: the TS surface, the iOS `RCT_EXTERN_METHOD`
+  and its Swift implementation, and the Android `@ReactMethod`. The pinned native versions are
+  untouched — each native SDK drops `alias` on its own release.
+
 ### Added
 
 - `variation(key, context, defaultValue)` — the value assigned for a key, or the caller's

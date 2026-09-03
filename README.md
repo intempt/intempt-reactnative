@@ -99,7 +99,6 @@ console.log(`${delivered} events delivered`);
 ```ts
 await intempt.identify('user-123', { userAttributes: { email: 'a@b.com' } });
 await intempt.group('acct-9', { accountAttributes: { tier: 'enterprise' } });
-await intempt.alias('user-123', 'anon-abc');
 
 await intempt.getProfileId();
 await intempt.getSessionId();

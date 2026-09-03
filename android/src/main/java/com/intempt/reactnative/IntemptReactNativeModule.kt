@@ -209,12 +209,6 @@ class IntemptReactNativeModule(
         )
     }
 
-    @ReactMethod
-    fun alias(instanceName: String, userId: String, anotherUserId: String, promise: Promise) =
-        withInstance(instanceName, "alias", promise) {
-            promise.resolve(it.alias(userId, anotherUserId))
-        }
-
     /**
      * Contract argument order, forwarded unchanged.
      *

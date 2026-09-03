@@ -49,8 +49,6 @@ export interface Spec extends TurboModule {
     accountAttributes: Object | null
   ): Promise<boolean>;
 
-  alias(instanceName: string, userId: string, anotherUserId: string): Promise<boolean>;
-
   record(
     instanceName: string,
     eventTitle: string,

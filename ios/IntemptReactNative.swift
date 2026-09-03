@@ -199,19 +199,6 @@ public class IntemptReactNative: NSObject {
     }
 
     @objc
-    func alias(
-        _ instanceName: String,
-        userId: String,
-        anotherUserId: String,
-        resolver resolve: @escaping RCTPromiseResolveBlock,
-        rejecter reject: @escaping RCTPromiseRejectBlock
-    ) {
-        withInstance(instanceName, "alias", reject) { instance in
-            resolve(instance.alias(userId: userId, anotherUserId: anotherUserId))
-        }
-    }
-
-    @objc
     func record(
         _ instanceName: String,
         eventTitle: String,

@@ -250,13 +250,6 @@ async function runProbe(
     return 'queued';
   });
 
-  await check('alias', async () => {
-    if (!(await sdk.alias(`rn-e2e-${stamp}`, `rn-e2e-alias-${stamp}`))) {
-      throw new Error('alias() returned false');
-    }
-    return 'queued';
-  });
-
   await check('record uses the frozen argument order', async () => {
     if (!(await sdk.record('RN e2e record', {
       userId: `rn-e2e-${stamp}`, accountId: `rn-acct-${stamp}`, data: { mrr: 120 },

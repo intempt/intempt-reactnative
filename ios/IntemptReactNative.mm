@@ -59,13 +59,6 @@ RCT_EXTERN_METHOD(group
                   : (RCTPromiseResolveBlock)resolve rejecter
                   : (RCTPromiseRejectBlock)reject)
 
-RCT_EXTERN_METHOD(alias
-                  : (NSString *)instanceName userId
-                  : (NSString *)userId anotherUserId
-                  : (NSString *)anotherUserId resolver
-                  : (RCTPromiseResolveBlock)resolve rejecter
-                  : (RCTPromiseRejectBlock)reject)
-
 RCT_EXTERN_METHOD(record
                   : (NSString *)instanceName eventTitle
                   : (NSString *)eventTitle userId
