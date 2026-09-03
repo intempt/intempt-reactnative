@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.2.0
+
+Server-side geolocation opt-out, matching intempt-swift and intempt-android.
+
+### Added
+
+- `useIpAddressForGeolocation` on `IntemptConfig` (`init`). Controls whether Intempt derives
+  country, region and city from the address a request already arrives on — the SDK never reads
+  or sends the device's address itself; it sends `?ip=1` / `?ip=0` and the platform resolves and
+  discards the connection address. Defaults to `true`, matching intempt-swift and android-sdk.
+  Leaving it on means the app collects Coarse Location for Apple's privacy-label purposes; see
+  `src/types.ts`'s doc comment on the field.
+- A second `init()` call for an existing instance that asks for a *different*
+  `useIpAddressForGeolocation` now warns (via `console.warn`) instead of silently discarding the
+  request — matches both native SDKs' own warning on the same case.
+
+### Removed
+
+- **BREAKING:** `IntemptInstance.alias(userId, anotherUserId)`. Linking two user identities is
+  the CDP's job, not the caller's: identity resolution already converges two user ids the moment
+  they share any identifier, so `alias` only reached the case where two ids never co-occur at
+  all — an id-scheme migration, which belongs in a server-side backfill. `identify` is unchanged
+  and remains the stitch trigger.
+
 ## 0.1.2 — unreleased
 
 Feature flags: read a value by key from the same serving endpoint the rest of Experiences uses.
