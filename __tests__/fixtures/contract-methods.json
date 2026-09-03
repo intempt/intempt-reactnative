@@ -22,7 +22,6 @@
     "track": "track(eventTitle, data?) -> Bool",
     "identify": "identify(userId, eventTitle, userAttributes?, data?) -> Bool",
     "group": "group(accountId, eventTitle, accountAttributes?) -> Bool",
-    "alias": "alias(userId, anotherUserId) -> Bool",
     "record": "record(eventTitle, userId?, accountId?, data?, userAttributes?, accountAttributes?) -> Bool",
     "productAdd": "productAdd(productId, quantity) -> Bool",
     "productView": "productView(productId) -> Bool",

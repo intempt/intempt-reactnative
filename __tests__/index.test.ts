@@ -51,8 +51,35 @@ describe('init', () => {
     await init(VALID);
     expect(nativeCalls[0]).toEqual({
       fn: 'initialize',
-      args: ['default', 'prefix.secret', 'org-1', 'proj-1', 'src-1'],
+      args: ['default', 'prefix.secret', 'org-1', 'proj-1', 'src-1', null],
     });
+  });
+
+  // The platform derives country/region/city from the address the request already arrives on.
+  // The device never reads or sends its own address; it states whether the derivation is wanted.
+  //
+  // Omitting the option sends null, NOT true. On Android a non-null value overrides
+  // assets/intempt-config.json, so sending true here flipped a customer's
+  // "useIpAddressForGeolocation": false back on whenever JS stayed silent — a privacy
+  // regression arriving through an SDK upgrade with no code change on their side. Null lets
+  // the file decide, and where there is no file the native default is on, so the observable
+  // behaviour for everyone else is unchanged.
+  it('omits the geolocation choice rather than asserting a default', async () => {
+    await init(VALID);
+    expect(nativeCalls[0]?.args[5]).toBeNull();
+  });
+
+  it('passes the geolocation opt-out through to native', async () => {
+    await init({ ...VALID, useIpAddressForGeolocation: false });
+    expect(nativeCalls[0]?.args[5]).toBe(false);
+  });
+
+  // The other half of the same contract: an explicit true must still reach native, so a
+  // caller can override a config file that says false. Without this, sending null
+  // unconditionally would also pass the test above.
+  it('passes an explicit geolocation opt-in through to native', async () => {
+    await init({ ...VALID, useIpAddressForGeolocation: true });
+    expect(nativeCalls[0]?.args[5]).toBe(true);
   });
 
   it.each([
@@ -76,6 +103,52 @@ describe('init', () => {
 
     expect(second).toBe(first);
     expect(nativeCalls).toHaveLength(0);
+  });
+
+  // The guard below was added with no test that had ever seen it fire, so every mutation
+  // of its condition survived. These three pin both directions: it warns on a real
+  // mismatch, and it stays silent when there is nothing to warn about.
+  it('warns when a repeated init asks for a different geolocation choice', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await init({ ...VALID, useIpAddressForGeolocation: true });
+      await init({ ...VALID, useIpAddressForGeolocation: false });
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      const message = String(warn.mock.calls[0]?.[0]);
+      // Both values belong in the message: the caller needs to see what they asked for
+      // and what actually stands.
+      expect(message).toContain('useIpAddressForGeolocation: false');
+      expect(message).toContain('already exists with true');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('stays silent when a repeated init asks for the same geolocation choice', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await init({ ...VALID, useIpAddressForGeolocation: false });
+      await init({ ...VALID, useIpAddressForGeolocation: false });
+
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  // Omitting the option on a re-init is not a conflict -- it is the common case, since a
+  // hot reload replays the same init. Warning here would fire on every refresh.
+  it('stays silent when a repeated init omits the geolocation choice', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await init({ ...VALID, useIpAddressForGeolocation: false });
+      await init(VALID);
+
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('keeps named instances separate', async () => {

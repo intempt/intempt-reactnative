@@ -28,7 +28,8 @@ RCT_EXTERN_METHOD(initialize
                   : (NSString *)apiKey orgId
                   : (NSString *)orgId projectId
                   : (NSString *)projectId sourceId
-                  : (NSString *)sourceId resolver
+                  : (NSString *)sourceId useIpAddressForGeolocation
+                  : (nullable NSNumber *)useIpAddressForGeolocation resolver
                   : (RCTPromiseResolveBlock)resolve rejecter
                   : (RCTPromiseRejectBlock)reject)
 
@@ -55,13 +56,6 @@ RCT_EXTERN_METHOD(group
                   : (NSString *)accountId eventTitle
                   : (nullable NSString *)eventTitle accountAttributes
                   : (nullable NSDictionary *)accountAttributes resolver
-                  : (RCTPromiseResolveBlock)resolve rejecter
-                  : (RCTPromiseRejectBlock)reject)
-
-RCT_EXTERN_METHOD(alias
-                  : (NSString *)instanceName userId
-                  : (NSString *)userId anotherUserId
-                  : (NSString *)anotherUserId resolver
                   : (RCTPromiseResolveBlock)resolve rejecter
                   : (RCTPromiseRejectBlock)reject)
 

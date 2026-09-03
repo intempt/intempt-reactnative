@@ -24,6 +24,7 @@ import com.intempt.core.types.AutocaptureOptions
 import com.intempt.core.types.AutomaticEventsOptions
 import com.intempt.core.types.ConsentAction
 import com.intempt.core.types.IntemptCredentials
+import com.intempt.core.types.IntemptRuntimeOptions
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -112,6 +113,7 @@ class IntemptReactNativeModule(
         orgId: String,
         projectId: String,
         sourceId: String,
+        useIpAddressForGeolocation: Boolean?,
         promise: Promise,
     ) {
         try {
@@ -135,7 +137,13 @@ class IntemptReactNativeModule(
             // race. Resolving regardless would hand JS a registry entry whose
             // every later call rejects `not_initialized` — the same lie as the
             // unconditional `true` this module used to return.
-            if (Intempt.initialize(reactContext, credentials, instanceName) == null) {
+            // An RN app has no asset file to edit, so the four-argument overload is the only way
+            // this option can reach the SDK at all. Passed explicitly rather than left to the asset
+            // file: the value JS supplied is the one the developer chose.
+            // Null when JS did not supply it, so assets/intempt-config.json stays
+            // authoritative. Passing a value here overrides the file.
+            val options = IntemptRuntimeOptions(useIpAddressForGeolocation = useIpAddressForGeolocation)
+            if (Intempt.initialize(reactContext, credentials, instanceName, options) == null) {
                 promise.reject(
                     "missing_configuration",
                     "Intempt.init could not create instance '$instanceName'. " +
@@ -200,12 +208,6 @@ class IntemptReactNativeModule(
             it.group(accountId, eventTitle, ReadableMapConverter.toValueMap(accountAttributes)),
         )
     }
-
-    @ReactMethod
-    fun alias(instanceName: String, userId: String, anotherUserId: String, promise: Promise) =
-        withInstance(instanceName, "alias", promise) {
-            promise.resolve(it.alias(userId, anotherUserId))
-        }
 
     /**
      * Contract argument order, forwarded unchanged.

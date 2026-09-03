@@ -383,7 +383,6 @@ describe("every method labels its own errors", () => {
     ["track", (s) => s.track("e")],
     ["identify", (s) => s.identify("u")],
     ["group", (s) => s.group("a")],
-    ["alias", (s) => s.alias("u", "v")],
     ["record", (s) => s.record("e")],
     ["productAdd", (s) => s.productAdd("p", 1)],
     ["productView", (s) => s.productView("p")],

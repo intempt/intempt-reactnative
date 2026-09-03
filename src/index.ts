@@ -176,7 +176,15 @@ function requireFlagKey(key: string, method: string): void {
  */
 export class IntemptInstance {
   /** @internal */
-  constructor(private readonly instanceName: string) {}
+  constructor(
+    private readonly instanceName: string,
+    /**
+     * What this instance was initialised with, or undefined when the choice was left to
+     * the platform. Readable so a caller can check which value is in force after a
+     * second init returned the cached instance rather than applying a new one.
+     */
+    readonly useIpAddressForGeolocation?: boolean,
+  ) {}
 
   /** The name this instance was registered under. */
   get name(): string {
@@ -250,13 +258,6 @@ export class IntemptInstance {
         options.eventTitle ?? null,
         encodeProperties(options.accountAttributes)
       )
-    );
-  }
-
-  /** Merges two user identities. */
-  alias(userId: string, anotherUserId: string): Promise<boolean> {
-    return this.call('alias', () =>
-      NativeIntempt.alias(this.instanceName, userId, anotherUserId)
     );
   }
 
@@ -623,6 +624,20 @@ export async function init(config: IntemptConfig): Promise<IntemptInstance> {
 
   const existing = instances.get(instanceName);
   if (existing) {
+    // Idempotent, deliberately. But a second init asking for a DIFFERENT geolocation
+    // choice used to be discarded here in silence: the native SDKs each warn on exactly
+    // this case, and returning before the bridge call made both warnings unreachable
+    // from React Native. The contract names this shape -- "initialise again after the
+    // consent banner" -- and a JS reload does it on every hot refresh.
+    const requested = config.useIpAddressForGeolocation;
+    if (requested !== undefined && requested !== existing.useIpAddressForGeolocation) {
+      console.warn(
+        `[intempt] init("${instanceName}") asked for useIpAddressForGeolocation: ` +
+          `${requested}, but that instance already exists with ` +
+          `${existing.useIpAddressForGeolocation}. The existing value stands. Pass it on ` +
+          `the first init, or use a different instanceName.`,
+      );
+    }
     return existing;
   }
 
@@ -632,13 +647,22 @@ export async function init(config: IntemptConfig): Promise<IntemptInstance> {
       config.apiKey,
       config.orgId,
       config.projectId,
-      config.sourceId
+      config.sourceId,
+      // null, not `?? true`. On Android a non-null value OVERRIDES
+      // assets/intempt-config.json, so defaulting here silently flipped a customer's
+      // "useIpAddressForGeolocation": false back on whenever JS omitted the option --
+      // a privacy regression delivered by an SDK upgrade with no code change on their
+      // side. android-sdk made the field nullable precisely so null defers to the file.
+      config.useIpAddressForGeolocation ?? null
     );
   } catch (error) {
     throw fromNativeRejection(error, 'init');
   }
 
-  const instance = new IntemptInstance(instanceName);
+  const instance = new IntemptInstance(
+    instanceName,
+    config.useIpAddressForGeolocation,
+  );
   instances.set(instanceName, instance);
   return instance;
 }

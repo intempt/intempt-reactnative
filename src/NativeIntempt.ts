@@ -27,7 +27,8 @@ export interface Spec extends TurboModule {
     apiKey: string,
     orgId: string,
     projectId: string,
-    sourceId: string
+    sourceId: string,
+    useIpAddressForGeolocation: boolean | null
   ): Promise<void>;
 
   // Capture — every one resolves to whether the event was queued
@@ -47,8 +48,6 @@ export interface Spec extends TurboModule {
     eventTitle: string | null,
     accountAttributes: Object | null
   ): Promise<boolean>;
-
-  alias(instanceName: string, userId: string, anotherUserId: string): Promise<boolean>;
 
   record(
     instanceName: string,

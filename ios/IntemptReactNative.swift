@@ -104,6 +104,7 @@ public class IntemptReactNative: NSObject {
         orgId: String,
         projectId: String,
         sourceId: String,
+        useIpAddressForGeolocation: NSNumber?,
         resolver resolve: @escaping RCTPromiseResolveBlock,
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
@@ -113,7 +114,8 @@ public class IntemptReactNative: NSObject {
                 orgId: orgId,
                 projectId: projectId,
                 sourceId: sourceId,
-                instanceName: instanceName)
+                instanceName: instanceName,
+                useIPAddressForGeolocation: useIpAddressForGeolocation?.boolValue ?? true)
             resolve(nil)
         } catch let error as IntemptError {
             rejectIntempt(reject, error)
@@ -193,19 +195,6 @@ public class IntemptReactNative: NSObject {
                         accountId: accountId,
                         accountAttributes: TypeBridge.properties(accountAttributes)))
             }
-        }
-    }
-
-    @objc
-    func alias(
-        _ instanceName: String,
-        userId: String,
-        anotherUserId: String,
-        resolver resolve: @escaping RCTPromiseResolveBlock,
-        rejecter reject: @escaping RCTPromiseRejectBlock
-    ) {
-        withInstance(instanceName, "alias", reject) { instance in
-            resolve(instance.alias(userId: userId, anotherUserId: anotherUserId))
         }
     }
 
