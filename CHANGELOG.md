@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.1
+
+Bumps the vendored iOS SDK to intempt-swift 0.4.0 (intempt-android stays at 4.0.0, already
+current). `trackPushOpen`/`trackPushReceived` were already bridged straight through to the
+native SDK's own methods of the same name, so nothing here changes RN's own surface — but on
+iOS, against 0.3.0 and earlier, those calls only fired analytics events. Against 0.4.0 they
+also POST delivered/bounced/opened to the push webhook, the same one Android has always used
+via `intempt-swift#14`. An app already calling `trackPushOpen`/`trackPushReceived` gets the
+webhook report for free on upgrade; no code change needed on the RN side.
+
+### Fixed
+
+- iOS push webhook reporting reaches Intempt. Previously the pin (0.3.0) predated the feature
+  entirely, so an RN app's push events on iOS were silently dropped after being emitted as
+  ordinary analytics events — Android never had this gap, since it originated the wire
+  contract this SDK now shares.
+
 ## 0.2.0
 
 Server-side geolocation opt-out, matching intempt-swift and intempt-android.
