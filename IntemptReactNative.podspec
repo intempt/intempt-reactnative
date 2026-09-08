@@ -24,11 +24,14 @@ Pod::Spec.new do |s|
 
   # PINNED EXACTLY, to the published release that carries the flag surface this PR bridges.
   #
-  # This bridge calls FlagContext, variation, allFlags AND (as of this PR)
-  # IntemptInstance.initialize's useIPAddressForGeolocation parameter. Trunk serves 0.1.0,
-  # 0.2.0 and 0.3.0; the flag/variation surface arrived in 0.2.0 but
-  # useIPAddressForGeolocation only exists from 0.3.0 (intempt-swift#11/#13) — measured
-  # against trunk.cocoapods.org and the sources of tag v0.3.0, not inferred.
+  # This bridge calls FlagContext, variation, allFlags, IntemptInstance.initialize's
+  # useIPAddressForGeolocation parameter, and trackPushOpen/trackPushReceived. Trunk serves
+  # 0.1.0, 0.2.0, 0.3.0 and 0.4.0; the flag/variation surface arrived in 0.2.0,
+  # useIPAddressForGeolocation in 0.3.0 (intempt-swift#11/#13), and 0.4.0
+  # (intempt-swift#14) is where trackPushOpen/trackPushReceived started actually reporting
+  # to the push webhook rather than only emitting analytics events — no new symbol, but the
+  # bridge's push calls are silently a no-op against any earlier version — measured against
+  # trunk.cocoapods.org and the sources of tag v0.4.0, not inferred.
   #
   # Earlier pins are recorded because each was wrong in an instructive way. '~> 0.1'
   # SELECTS 0.1.0, so a consumer got a successful dependency resolution followed by "cannot
@@ -43,7 +46,7 @@ Pod::Spec.new do |s|
   #
   # `npm run check:native-pins` resolves this against trunk on every CI run and downloads
   # what it selects to confirm the symbol is really in there. Do not tag while it is red.
-  s.dependency 'Intempt', '0.3.0'
+  s.dependency 'Intempt', '0.4.0'
 
   # install_modules_dependencies wires React-Core, and on the new architecture
   # also ReactCommon, RCT-Folly, glog and the generated spec. Available in
