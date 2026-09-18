@@ -75,5 +75,14 @@ dependencies {
   // never called alias()). Published on Maven Central 2026-09-03 and verified by
   // `npm run check:native-pins`, which downloads the sources jar rather than trusting the
   // version number.
-  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '4.0.0'}"
+  //
+  // 4.0.1 fixes push registration on Android, and the bug is invisible from this side: the FCM
+  // token reaches the platform through exactly one carrier — the install/upgrade event's
+  // `userAttributes.fcm_token_<sourceId>` — and that event was gated on
+  // AutomaticEventsOptions.versionChanges, which defaults to false. Up to and including 4.0.0 an
+  // RN app therefore obtained a real token from Firebase and never registered it: no error, no
+  // warning, no log line, and every push silently went nowhere. Rotation was broken the same way
+  // (onNewToken sent `data.deviceToken`, which nothing on the platform reads). This bridge calls
+  // no push-registration API of its own, so the pin bump IS the fix for RN consumers.
+  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '4.0.1'}"
 }
