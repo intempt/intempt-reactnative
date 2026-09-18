@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.2
+
+Bumps the pinned Android SDK to intempt-android 4.0.1 (intempt-swift stays at 0.4.0, already
+current). 4.0.1 fixes FCM token registration, and the bug was invisible from the RN side: the
+token reaches the platform through one carrier — the install/upgrade event's
+`userAttributes.fcm_token_<sourceId>` — and that event was gated on
+`AutomaticEventsOptions.versionChanges`, which defaults to `false`. Up to and including 4.0.0 an
+RN app on Android obtained a real token from Firebase and never registered it, with no error, no
+warning and no log line. This bridge calls no push-registration API of its own, so the pin bump
+is the entire fix; no RN-side code changed and no RN surface moved.
+
+### Fixed
+
+- Android push registration reaches Intempt. Previously an RN app's Android device token was
+  never announced unless the host app had explicitly enabled `versionChanges` — an unrelated
+  analytics flag that is off by default and documented nowhere as a push prerequisite — so
+  pushes to those profiles went nowhere. Token rotation was broken by the same root cause and is
+  also fixed. iOS was unaffected.
+
 ## 0.2.1
 
 Bumps the vendored iOS SDK to intempt-swift 0.4.0 (intempt-android stays at 4.0.0, already
