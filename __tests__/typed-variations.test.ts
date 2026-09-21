@@ -1,10 +1,3 @@
-/**
- * A typed read returns the served value only when its type matches the method,
- * and the caller's default otherwise. Coercion is the thing being prevented:
- * Boolean('false') is true, and a silent coercion cannot be told apart from a
- * correct answer.
- */
-
 import { nativeReturns, resetNative } from './setup';
 import { init, __resetInstanceRegistryForTests } from '../src/index';
 
@@ -15,8 +8,6 @@ const VALID = {
   sourceId: 'src-1',
 };
 
-// The bridge answers { value }, and the TS layer unwraps it. A bare value here
-// would read as "no value served" and every assertion would get the default.
 function serves(body: unknown) {
   nativeReturns.variation = { value: body };
 }
