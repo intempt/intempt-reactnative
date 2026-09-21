@@ -15,8 +15,10 @@ const VALID = {
   sourceId: 'src-1',
 };
 
+// The bridge answers { value }, and the TS layer unwraps it. A bare value here
+// would read as "no value served" and every assertion would get the default.
 function serves(body: unknown) {
-  nativeReturns.variation = body;
+  nativeReturns.variation = { value: body };
 }
 
 describe('typed variations', () => {
