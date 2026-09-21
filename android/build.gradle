@@ -85,4 +85,12 @@ dependencies {
   // (onNewToken sent `data.deviceToken`, which nothing on the platform reads). This bridge calls
   // no push-registration API of its own, so the pin bump IS the fix for RN consumers.
   implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '4.0.1'}"
+
+  // The SDK ships kotlinx-serialization as `implementation`, so its types are not on this
+  // module's compile classpath even though its API returns them: variation() hands back a
+  // kotlinx JsonObject whose leaves are JsonPrimitive. Declared here so putValue can unwrap
+  // them into Kotlin values before the bridge converts. Same version the SDK is built against;
+  // Kotlin 2.0.21 pairs with kotlinx-serialization 1.7.x.
+  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3"
+
 }
