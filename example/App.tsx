@@ -154,6 +154,10 @@ export default function App(): React.JSX.Element {
             .numberVariation('free_shipping_threshold', { userId: 'user-123' }, 50)
             .then((n: number) => `free_shipping_threshold = ${n}`)],
 
+        ['jsonVariation', () => sdk
+            .jsonVariation('checkout_theme', { userId: 'user-123' }, {})
+            .then((v: object) => `checkout_theme = ${JSON.stringify(v)}`)],
+
         ['allFlags', () => sdk
             .allFlags({ userId: 'user-123' })
             .then((f: Record<string, unknown>) => `${Object.keys(f).length} key(s)`)],
