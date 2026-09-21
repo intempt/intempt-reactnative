@@ -26,6 +26,14 @@ import com.intempt.core.types.ConsentAction
 import com.intempt.core.types.IntemptCredentials
 import com.intempt.core.types.IntemptRuntimeOptions
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.double
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.long
+import kotlinx.serialization.json.longOrNull
 
 /**
  * Bridges intempt-android to React Native.
@@ -482,37 +490,60 @@ class IntemptReactNativeModule(
      * same payload.
      */
     private fun putValue(map: WritableMap, key: String, value: Any?) {
-        when (value) {
+        when (val unwrapped = unwrapJson(value)) {
             null -> map.putNull(key)
-            is Boolean -> map.putBoolean(key, value)
-            is Int -> map.putInt(key, value)
-            is Double -> map.putDouble(key, value)
+            is Boolean -> map.putBoolean(key, unwrapped)
+            is Int -> map.putInt(key, unwrapped)
+            is Double -> map.putDouble(key, unwrapped)
             // Long, Float and any other Number cross as a double: the bridge carries no wider
             // numeric type, and putString would change the payload's JSON type.
-            is Number -> map.putDouble(key, value.toDouble())
-            is String -> map.putString(key, value)
-            is Map<*, *> -> map.putMap(key, writableMap(value))
-            is Iterable<*> -> map.putArray(key, writableArray(value))
-            is Array<*> -> map.putArray(key, writableArray(value.asIterable()))
-            else -> map.putString(key, value.toString())
+            is Number -> map.putDouble(key, unwrapped.toDouble())
+            is String -> map.putString(key, unwrapped)
+            is Map<*, *> -> map.putMap(key, writableMap(unwrapped))
+            is Iterable<*> -> map.putArray(key, writableArray(unwrapped))
+            is Array<*> -> map.putArray(key, writableArray(unwrapped.asIterable()))
+            else -> map.putString(key, unwrapped.toString())
         }
     }
 
     /** The array half of [putValue]. Same ordering, same recursion. */
     private fun pushValue(array: WritableArray, value: Any?) {
-        when (value) {
+        when (val unwrapped = unwrapJson(value)) {
             null -> array.pushNull()
-            is Boolean -> array.pushBoolean(value)
-            is Int -> array.pushInt(value)
-            is Double -> array.pushDouble(value)
-            is Number -> array.pushDouble(value.toDouble())
-            is String -> array.pushString(value)
-            is Map<*, *> -> array.pushMap(writableMap(value))
-            is Iterable<*> -> array.pushArray(writableArray(value))
-            is Array<*> -> array.pushArray(writableArray(value.asIterable()))
-            else -> array.pushString(value.toString())
+            is Boolean -> array.pushBoolean(unwrapped)
+            is Int -> array.pushInt(unwrapped)
+            is Double -> array.pushDouble(unwrapped)
+            is Number -> array.pushDouble(unwrapped.toDouble())
+            is String -> array.pushString(unwrapped)
+            is Map<*, *> -> array.pushMap(writableMap(unwrapped))
+            is Iterable<*> -> array.pushArray(writableArray(unwrapped))
+            is Array<*> -> array.pushArray(writableArray(unwrapped.asIterable()))
+            else -> array.pushString(unwrapped.toString())
         }
     }
+
+    /**
+     * A kotlinx JSON leaf as the Kotlin value it stands for.
+     *
+     * JsonObject implements Map and JsonArray implements List, so both already recurse through
+     * [putValue]. A JsonPrimitive matches none of its branches and used to fall to
+     * `putString(value.toString())`, which keeps JSON's quoting: `"#000"` crossed the bridge as
+     * the six-character string `"#000"`, `1` as `"1"`. iOS returns real values, and the two
+     * platforms must not disagree about the same payload.
+     */
+    private fun unwrapJson(value: Any?): Any? =
+        when (value) {
+            is JsonNull -> null
+            is JsonPrimitive ->
+                when {
+                    value.isString -> value.content
+                    value.booleanOrNull != null -> value.boolean
+                    value.longOrNull != null -> value.long
+                    value.doubleOrNull != null -> value.double
+                    else -> value.content
+                }
+            else -> value
+        }
 
     private fun writableMap(source: Map<*, *>): WritableMap =
         Arguments.createMap().apply {
