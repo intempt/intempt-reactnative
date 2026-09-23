@@ -246,6 +246,18 @@ Different from automatic events, and easy to confuse with them. Automatic events
 lifecycle facts the SDK already knows. **Autocapture hooks the view layer** — on iOS it
 swizzles UIKit — so it installs nothing until you start it.
 
+> **On Android this needs intempt-android 5.0.0, which this package bundles from 0.3.0.**
+> intempt-android 4.x starts autocapture at `init()`, so an app that overrides
+> `intemptAndroidVersion` in its `gradle.properties` back to 4.x gets that behaviour back.
+
+What a user types into a text field is never captured on either platform, with no switch
+to turn it on. A field's name, a switch's state and a button's label still come through.
+On Android that holds from intempt-android 5.0.0 (bundled from 0.3.0). To send a typed value on purpose, pass
+it in a `track()` or `record()` call.
+
+See [Autocapture and automatic events](https://docs.intempt.com/api/sdk/autocapture) for how
+this compares with the web SDK.
+
 ```ts
 await intempt.autocapture.configure({
   screenViews: true,

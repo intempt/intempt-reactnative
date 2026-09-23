@@ -84,5 +84,11 @@ dependencies {
   // warning, no log line, and every push silently went nowhere. Rotation was broken the same way
   // (onNewToken sent `data.deviceToken`, which nothing on the platform reads). This bridge calls
   // no push-registration API of its own, so the pin bump IS the fix for RN consumers.
-  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '4.0.1'}"
+  //
+  // 5.0.0 is a BREAKING release, and both breaks are what this package already promised on iOS:
+  // autocapture no longer starts at initialize() unless the app asks (4.x started it at init(),
+  // intempt-swift installs nothing until start()), and what a user types into an EditText is
+  // never captured. No public signature this bridge calls changed between 4.0.1 and 5.0.0 — the
+  // two signatures that did move (IntemptOptions, buildChooseBody) are internal.
+  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '5.0.0'}"
 }
