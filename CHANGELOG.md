@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.0
+
+Bumps the pinned Android SDK to intempt-android 5.0.0 (intempt-swift stays at 0.4.0, already
+current). 5.0.0 is a breaking release, and both of its breaks bring Android in line with what
+this package already did on iOS. No RN-side code changed and no RN surface moved: no public
+signature this bridge calls changed between 4.0.1 and 5.0.0.
+
+### Changed
+
+- **BREAKING (Android): autocapture no longer starts at `init()`.** It installs nothing until
+  `autocapture.start()` is called, or the app's `intempt-config.json` sets
+  `"isAutoCaptureEnabled": true`. This matches iOS. An app that relied on Android autocapture
+  starting by itself must now start it.
+- **BREAKING (Android): what a user types into a text field is never captured.** Change and touch
+  events on an `EditText` carry `*****` in `targetText` and `targetValue`, whatever `captureText`
+  is set to. The event still fires. Labels, switch state and button labels are unchanged. This
+  matches iOS. To send a typed value on purpose, pass it in `track()` or `record()`.
+- An app can still pin a different Android SDK with `intemptAndroidVersion` in its own
+  `gradle.properties`; pinning it back to 4.x restores the old autocapture behaviour.
+
 ## 0.2.2
 
 Bumps the pinned Android SDK to intempt-android 4.0.1 (intempt-swift stays at 0.4.0, already
