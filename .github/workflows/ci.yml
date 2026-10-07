@@ -28,7 +28,7 @@ jobs:
   # skipped.
   bucketing:
     name: Server-only bucketing
-    runs-on: intempt-ubuntu-github-runner
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,7 +58,7 @@ jobs:
   # tick — a gate nobody sees fail is the exact failure this whole job is about.
   native-pins:
     name: Shipped native pins resolve to a usable release
-    runs-on: intempt-ubuntu-github-runner
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,7 +71,7 @@ jobs:
   # fully installed environment is one that gets skipped.
   corpus:
     name: Contract corpus
-    runs-on: intempt-ubuntu-github-runner
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -87,7 +87,7 @@ jobs:
   # someone else's app after publishing.
   pack:
     name: Publishable artifact
-    runs-on: intempt-ubuntu-github-runner
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -100,7 +100,7 @@ jobs:
 
   typecheck:
     name: Typecheck
-    runs-on: intempt-ubuntu-github-runner
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -112,7 +112,7 @@ jobs:
 
   lint:
     name: Lint
-    runs-on: intempt-ubuntu-github-runner
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -124,7 +124,7 @@ jobs:
 
   unit:
     name: Unit tests
-    runs-on: intempt-ubuntu-github-runner
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -145,7 +145,7 @@ jobs:
   # already executed, so coverage could not see any of them.
   mutation:
     name: Mutation testing
-    runs-on: intempt-ubuntu-github-runner
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -248,7 +248,7 @@ jobs:
   # no publishToMavenLocal, no repository reordering.
   android-build:
     name: Android build (bare RN host app)
-    runs-on: intempt-ubuntu-github-runner
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -277,7 +277,7 @@ jobs:
   # breaking API change fails here rather than in a customer's editor.
   example-typecheck:
     name: Example app typecheck
-    runs-on: intempt-ubuntu-github-runner
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
