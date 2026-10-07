@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   publish-npm:
-    runs-on: intempt-ubuntu-github-runner
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
