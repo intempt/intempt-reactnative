@@ -408,6 +408,7 @@ describe("every method labels its own errors", () => {
     ["variation", (s) => s.boolVariation("k", {}, false)],
     ["variation", (s) => s.stringVariation("k", {}, "x")],
     ["variation", (s) => s.numberVariation("k", {}, 0)],
+    ["variation", (s) => s.jsonVariation("k", {}, {})],
     ["allFlags", (s) => s.allFlags({})],
     ["getAutomaticEvents", (s) => s.getAutomaticEvents()],
     [
@@ -467,6 +468,7 @@ describe("every method labels its own errors", () => {
       "boolVariation",
       "stringVariation",
       "numberVariation",
+      "jsonVariation",
     ]);
     expect(
       bridged.filter((m) => !noBridgeCall.has(m) && !labelled.includes(m)),
