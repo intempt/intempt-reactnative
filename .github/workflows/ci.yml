@@ -260,6 +260,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      # The self-hosted runner ships no Android SDK (gradle: "SDK location not found").
+      # Only platform-tools: the action default also asks for the removed "tools" package.
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          packages: platform-tools
       - name: Scaffold a bare React Native app
         run: |
           npx --yes @react-native-community/cli@latest init HostApp \
