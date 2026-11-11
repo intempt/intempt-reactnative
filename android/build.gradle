@@ -98,6 +98,13 @@ dependencies {
   // duration.
   implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '5.2.0'}"
 
+  // JsonLeaves.kt and FlagValueTest import kotlinx.serialization.json directly, so the bridge
+  // declares it rather than leaning on intempt-android's transitive copy (2.0.1 shipped it as
+  // `implementation`, invisible to consumers). The version is intempt-android's own
+  // (gradle/libs.versions.toml `kotlinxSerializationJson`), so resolution cannot pick a second one.
+  // Bump the two together.
+  implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1'
+
   // Plain-JVM tests only: anything touching Arguments/WritableNativeMap loads React Native's
   // native libraries and cannot run here, so the tests target pure functions the bridge calls.
   testImplementation 'junit:junit:4.13.2'

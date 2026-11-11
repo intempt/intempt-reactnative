@@ -14,10 +14,11 @@ then.
   takes absolute epoch milliseconds.
 - **Android: consent `validUntil` is sent in milliseconds (INT-7449).** The bridge passed JS's
   seconds straight to intempt-android, which takes epoch milliseconds, so every consent expired in
-  January 1970.
+  January 1970. A `validUntil` in the past or NaN is sent as "expires now" and `Infinity` as
+  unlimited (-1), as on iOS.
 - **Android: flag values arrive as plain JS values (INT-7450).** kotlinx JSON leaves are unwrapped
-  before the bridge converts them, and the stray kotlinx-serialization-json 1.7.3 declaration is
-  dropped.
+  before the bridge converts them. kotlinx-serialization-json is now declared by the bridge, at
+  intempt-android's own version (1.5.1), instead of arriving only transitively.
 - **iOS: a flag context without a profileId uses the stored one (INT-7453).** A `{}` or `{userId}`
   context reached the server without a profileId (a 400 for `{}`, which resolved to the default).
 
