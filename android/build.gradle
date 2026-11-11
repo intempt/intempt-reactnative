@@ -91,4 +91,8 @@ dependencies {
   // never captured. No public signature this bridge calls changed between 4.0.1 and 5.0.0 — the
   // two signatures that did move (IntemptOptions, buildChooseBody) are internal.
   implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '5.0.0'}"
+
+  // Plain-JVM tests only: anything touching Arguments/WritableNativeMap loads React Native's
+  // native libraries and cannot run here, so the tests target pure functions the bridge calls.
+  testImplementation 'junit:junit:4.13.2'
 }

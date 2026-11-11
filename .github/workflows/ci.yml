@@ -277,6 +277,12 @@ jobs:
       - name: Build
         working-directory: HostApp/android
         run: ./gradlew assembleDebug --no-daemon
+      # The bridge's only Kotlin test layer (android/src/test). It needs the host app because the
+      # module applies com.facebook.react and declares no repositories of its own. The project
+      # name is the autolinked one: RN's nameCleansed turns @scope/name into scope_name.
+      - name: Kotlin unit tests
+        working-directory: HostApp/android
+        run: ./gradlew :intempt-technologies_react-native:testDebugUnitTest --no-daemon
 
   # Typechecks the committed example app against the package it consumes, so a
   # breaking API change fails here rather than in a customer's editor.
