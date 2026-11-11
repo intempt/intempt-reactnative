@@ -303,11 +303,22 @@ public class IntemptReactNative: NSObject {
             resolve(
                 instance.consent(
                     action: consentAction,
-                    validUntil: validUntil.doubleValue,
+                    validUntil: Self.consentDuration(
+                        untilUnixSeconds: validUntil.doubleValue, now: Date()),
                     email: email,
                     message: message,
                     category: category))
         }
+    }
+
+    /// JS documents consent `validUntil` as absolute Unix seconds (src/index.ts); intempt-swift
+    /// from 0.5.0 (INT-5956) takes seconds FROM NOW and sends now + duration. Passing the absolute
+    /// value through would push the expiry ~54 years out. A past time clamps to 0, "expires now",
+    /// the withdrawal intempt-swift documents; NaN does too. `.infinity` passes through, which
+    /// intempt-swift sends as -1, unlimited.
+    static func consentDuration(untilUnixSeconds: Double, now: Date) -> TimeInterval {
+        let remaining = untilUnixSeconds - now.timeIntervalSince1970
+        return remaining > 0 ? remaining : 0
     }
 
     // MARK: - Identity
@@ -458,7 +469,7 @@ public class IntemptReactNative: NSObject {
         }
     }
 
-    /// The pinned intempt-swift 0.4.0 uses a caller's FlagContext as-is, so a `{}` or `{userId}`
+    /// intempt-swift before 0.5.0 used a caller's FlagContext as-is, so a `{}` or `{userId}`
     /// context reached the server without the stored profileId (a 400 for `{}`, which resolves
     /// to the default). Android merges it in; this does the same here (INT-7453). Empty counts
     /// as missing because intempt-swift omits an empty profileId from the request. Kept after
