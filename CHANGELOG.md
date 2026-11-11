@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.4.0 (unreleased)
+
+Bumps the pinned native SDKs to intempt-android 5.2.0 and intempt-swift 0.5.0. Neither is
+published yet: release this package only after both are, and re-run `npm run check:native-pins`
+then.
+
+### Fixed
+
+- **iOS: consent `validUntil` keeps meaning absolute Unix seconds.** intempt-swift 0.5.0 reads it
+  as seconds from now (its INT-5956 fix), so the bridge now converts before the call. A time in
+  the past is sent as "expires now". Android needs no conversion: intempt-android 5.2.0 still
+  takes absolute epoch milliseconds.
+- **Android: consent `validUntil` is sent in milliseconds (INT-7449).** The bridge passed JS's
+  seconds straight to intempt-android, which takes epoch milliseconds, so every consent expired in
+  January 1970.
+- **Android: flag values arrive as plain JS values (INT-7450).** kotlinx JSON leaves are unwrapped
+  before the bridge converts them, and the stray kotlinx-serialization-json 1.7.3 declaration is
+  dropped.
+- **iOS: a flag context without a profileId uses the stored one (INT-7453).** A `{}` or `{userId}`
+  context reached the server without a profileId (a 400 for `{}`, which resolved to the default).
+
+### Changed
+
+- Android: flag lookups give up after 2000 ms and return the default (intempt-android 5.2.0,
+  INT-7445).
+
 ## 0.3.0
 
 Bumps the pinned Android SDK to intempt-android 5.0.0 (intempt-swift stays at 0.4.0, already
