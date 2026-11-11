@@ -25,6 +25,14 @@ then.
 
 - Android: flag lookups give up after 2000 ms and return the default (intempt-android 5.2.0,
   INT-7445).
+- Android: what the native bump from 5.0.0 brings (see intempt-android's CHANGELOG for 5.1.0 and
+  5.2.0). Events rejected with 401 or 402 are dropped on the first answer, not retried (INT-7438).
+  From 5.1.0, a logOut() or reset() on a device with a push token sends two "App
+  install/upgrade" events carrying `data.reason`; journeys triggered on that event must exclude
+  them. `apiUrl` is validated at init (https, or http to a local host only); an invalid one
+  rejects `init()`. `ANDROID_ID` is no longer collected. Invalid flag keys were already rejected
+  by this package's JS layer before reaching native.
+- iOS: the swift bump from 0.4.0 also brings 0.4.1's fix for USER-input product feeds (INT-5952).
 
 ## 0.3.0
 
