@@ -442,9 +442,7 @@ public class IntemptReactNative: NSObject {
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
         withInstance(instanceName, "variation", reject) { instance in
-            let flagContext = FlagContext(
-                userId: context["userId"] as? String,
-                profileId: context["profileId"] as? String)
+            let flagContext = Self.flagContext(from: context, instance: instance)
 
             instance.variation(
                 key: key, context: flagContext, defaultValue: .null
@@ -460,6 +458,20 @@ public class IntemptReactNative: NSObject {
         }
     }
 
+    /// The pinned intempt-swift 0.4.0 uses a caller's FlagContext as-is, so a `{}` or `{userId}`
+    /// context reached the server without the stored profileId (a 400 for `{}`, which resolves
+    /// to the default). Android merges it in; this does the same here (INT-7453). Empty counts
+    /// as missing because intempt-swift omits an empty profileId from the request. Kept after
+    /// the intempt-swift fix: it is harmless there and correct against older pins.
+    private static func flagContext(from context: [String: Any], instance: IntemptInstance)
+        -> FlagContext
+    {
+        let supplied = (context["profileId"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        return FlagContext(
+            userId: context["userId"] as? String,
+            profileId: supplied ?? instance.getProfileId())
+    }
+
     @objc
     func allFlags(
         _ instanceName: String,
@@ -468,9 +480,7 @@ public class IntemptReactNative: NSObject {
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
         withInstance(instanceName, "allFlags", reject) { instance in
-            let flagContext = FlagContext(
-                userId: context["userId"] as? String,
-                profileId: context["profileId"] as? String)
+            let flagContext = Self.flagContext(from: context, instance: instance)
 
             instance.allFlags(context: flagContext) { values in
                 resolve(values.mapValues { TypeBridge.any(from: $0) })
