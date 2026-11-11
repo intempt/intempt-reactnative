@@ -286,7 +286,7 @@ class IntemptReactNativeModule(
             return
         }
         withInstance(instanceName, "consent", promise) {
-            promise.resolve(it.consent(parsed, validUntil.toLong(), email, message, category))
+            promise.resolve(it.consent(parsed, consentValidUntilMillis(validUntil), email, message, category))
         }
     }
 
