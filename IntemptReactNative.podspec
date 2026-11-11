@@ -18,6 +18,13 @@ Pod::Spec.new do |s|
   s.swift_version = '5.9'
 
   s.source_files = 'ios/**/*.{h,m,mm,swift}'
+  s.exclude_files = 'ios/Tests/**/*'
+
+  # INT-7453: the only Swift unit layer, and not in CI. It needs React, so it runs from an app
+  # workspace whose Podfile opts in: `pod 'IntemptReactNative', :path => '..', :testspecs => ['Tests']`.
+  s.test_spec 'Tests' do |test_spec|
+    test_spec.source_files = 'ios/Tests/**/*.swift'
+  end
   s.requires_arc = true
   s.preserve_paths = 'LICENSE', 'NOTICE', 'README.md', 'package.json'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }

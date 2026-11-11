@@ -11,6 +11,7 @@
     "src/",
     "lib/",
     "ios/",
+    "!ios/Tests/",
     "android/src/",
     "android/build.gradle",
     "IntemptReactNative.podspec",

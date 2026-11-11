@@ -466,10 +466,16 @@ public class IntemptReactNative: NSObject {
     private static func flagContext(from context: [String: Any], instance: IntemptInstance)
         -> FlagContext
     {
+        let ids = flagContextIds(from: context, storedProfileId: instance.getProfileId())
+        return FlagContext(userId: ids.userId, profileId: ids.profileId)
+    }
+
+    /// Split from `flagContext` so ios/Tests can cover the choice without an IntemptInstance.
+    static func flagContextIds(
+        from context: [String: Any], storedProfileId: @autoclosure () -> String?
+    ) -> (userId: String?, profileId: String?) {
         let supplied = (context["profileId"] as? String).flatMap { $0.isEmpty ? nil : $0 }
-        return FlagContext(
-            userId: context["userId"] as? String,
-            profileId: supplied ?? instance.getProfileId())
+        return (context["userId"] as? String, supplied ?? storedProfileId())
     }
 
     @objc
