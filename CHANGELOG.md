@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.4.0 (unreleased)
+## 0.4.1
+
+Same code as 0.4.0, which was tagged but never reached npm: its publish ran on the self-hosted
+runner and npm rejected the provenance (E422). The release job now runs on GitHub-hosted
+`ubuntu-latest`. Everything listed under 0.4.0 ships in this version.
+
+## 0.4.0 (not published)
 
 Bumps the pinned native SDKs to intempt-android 6.0.0 and intempt-swift 0.5.0. Both are
 published; re-run `npm run check:native-pins` before releasing this package. 6.0.0 is MAJOR only
