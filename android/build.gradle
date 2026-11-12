@@ -91,12 +91,12 @@ dependencies {
   // never captured. No public signature this bridge calls changed between 4.0.1 and 5.0.0 — the
   // two signatures that did move (IntemptOptions, buildChooseBody) are internal.
   //
-  // 5.2.0 (intempt-android#81) bounds flag lookups at 2000 ms and adds an optional trailing
+  // 6.0.0 (intempt-android#81) bounds flag lookups at 2000 ms and adds an optional trailing
   // userId to consent() and products() under @JvmOverloads, so this bridge's calls still resolve.
   // consent(validUntil) is still absolute epoch milliseconds (Intempt.kt), which is what
   // consentValidUntilMillis sends (INT-7449); unlike intempt-swift 0.5.0 it did not become a
   // duration.
-  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '5.2.0'}"
+  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '6.0.0'}"
 
   // JsonLeaves.kt and FlagValueTest import kotlinx.serialization.json directly, so the bridge
   // declares it rather than leaning on intempt-android's transitive copy (2.0.1 shipped it as

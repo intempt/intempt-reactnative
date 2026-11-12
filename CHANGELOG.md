@@ -2,15 +2,15 @@
 
 ## 0.4.0 (unreleased)
 
-Bumps the pinned native SDKs to intempt-android 5.2.0 and intempt-swift 0.5.0. Neither is
-published yet: release this package only after both are, and re-run `npm run check:native-pins`
-then.
+Bumps the pinned native SDKs to intempt-android 6.0.0 and intempt-swift 0.5.0. Both are
+published; re-run `npm run check:native-pins` before releasing this package. 6.0.0 is MAJOR only
+for a binary break in `consent$default` / `products$default`, which this bridge recompiles past.
 
 ### Fixed
 
 - **iOS: consent `validUntil` keeps meaning absolute Unix seconds.** intempt-swift 0.5.0 reads it
   as seconds from now (its INT-5956 fix), so the bridge now converts before the call. A time in
-  the past is sent as "expires now". Android needs no conversion: intempt-android 5.2.0 still
+  the past is sent as "expires now". Android needs no conversion: intempt-android 6.0.0 still
   takes absolute epoch milliseconds.
 - **Android: consent `validUntil` is sent in milliseconds (INT-7449).** The bridge passed JS's
   seconds straight to intempt-android, which takes epoch milliseconds, so every consent expired in
@@ -24,10 +24,10 @@ then.
 
 ### Changed
 
-- Android: flag lookups give up after 2000 ms and return the default (intempt-android 5.2.0,
+- Android: flag lookups give up after 2000 ms and return the default (intempt-android 6.0.0,
   INT-7445).
 - Android: what the native bump from 5.0.0 brings (see intempt-android's CHANGELOG for 5.1.0 and
-  5.2.0). Events rejected with 401 or 402 are dropped on the first answer, not retried (INT-7438).
+  6.0.0). Events rejected with 401 or 402 are dropped on the first answer, not retried (INT-7438).
   From 5.1.0, a logOut() or reset() on a device with a push token sends two "App
   install/upgrade" events carrying `data.reason`; journeys triggered on that event must exclude
   them. `apiUrl` is validated at init (https, or http to a local host only); an invalid one
