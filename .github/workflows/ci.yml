@@ -249,6 +249,9 @@ jobs:
   android-build:
     name: Android build (bare RN host app)
     runs-on: intempt-ubuntu-github-runner
+    # The 4-ABI build ran 2h+ on this runner and on 2026-11-12 killed it mid-Build (job
+    # 131171983622: "runner lost communication"). Fail at a bound instead of hanging.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -276,13 +279,15 @@ jobs:
           npm install ../intempt-react-native
       - name: Build
         working-directory: HostApp/android
-        run: ./gradlew assembleDebug --no-daemon
+        # One ABI: this job proves the bridge compiles and links, which needs no ABI fan-out;
+        # building RN's C++ for all 4 ABIs serially is what exhausted the self-hosted runner.
+        run: ./gradlew assembleDebug --no-daemon -PreactNativeArchitectures=x86_64
       # The bridge's only Kotlin test layer (android/src/test). It needs the host app because the
       # module applies com.facebook.react and declares no repositories of its own. The project
       # name is the autolinked one: RN's nameCleansed turns @scope/name into scope_name.
       - name: Kotlin unit tests
         working-directory: HostApp/android
-        run: ./gradlew :intempt-technologies_react-native:testDebugUnitTest --no-daemon
+        run: ./gradlew :intempt-technologies_react-native:testDebugUnitTest --no-daemon -PreactNativeArchitectures=x86_64
 
   # Typechecks the committed example app against the package it consumes, so a
   # breaking API change fails here rather than in a customer's editor.
