@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.4.0 (unreleased)
+
+Bumps the pinned native SDKs to intempt-android 6.0.0 and intempt-swift 0.5.0. Both are
+published; re-run `npm run check:native-pins` before releasing this package. 6.0.0 is MAJOR only
+for a binary break in `consent$default` / `products$default`, which this bridge recompiles past.
+
+### Fixed
+
+- **iOS: consent `validUntil` keeps meaning absolute Unix seconds.** intempt-swift 0.5.0 reads it
+  as seconds from now (its INT-5956 fix), so the bridge now converts before the call. A time in
+  the past is sent as "expires now". Android needs no conversion: intempt-android 6.0.0 still
+  takes absolute epoch milliseconds.
+- **Android: consent `validUntil` is sent in milliseconds (INT-7449).** The bridge passed JS's
+  seconds straight to intempt-android, which takes epoch milliseconds, so every consent expired in
+  January 1970. A `validUntil` in the past or NaN is sent as "expires now" and `Infinity` as
+  unlimited (-1), as on iOS.
+- **Android: flag values arrive as plain JS values (INT-7450).** kotlinx JSON leaves are unwrapped
+  before the bridge converts them. kotlinx-serialization-json is now declared by the bridge, at
+  intempt-android's own version (1.5.1), instead of arriving only transitively.
+- **iOS: a flag context without a profileId uses the stored one (INT-7453).** A `{}` or `{userId}`
+  context reached the server without a profileId (a 400 for `{}`, which resolved to the default).
+
+### Changed
+
+- Android: flag lookups give up after 2000 ms and return the default (intempt-android 6.0.0,
+  INT-7445).
+- Android: what the native bump from 5.0.0 brings (see intempt-android's CHANGELOG for 5.1.0 and
+  6.0.0). Events rejected with 401 or 402 are dropped on the first answer, not retried (INT-7438).
+  From 5.1.0, a logOut() or reset() on a device with a push token sends two "App
+  install/upgrade" events carrying `data.reason`; journeys triggered on that event must exclude
+  them. `apiUrl` is validated at init (https, or http to a local host only); an invalid one
+  rejects `init()`. `ANDROID_ID` is no longer collected. Invalid flag keys were already rejected
+  by this package's JS layer before reaching native.
+- iOS: the swift bump from 0.4.0 also brings 0.4.1's fix for USER-input product feeds (INT-5952).
+
 ## 0.3.0
 
 Bumps the pinned Android SDK to intempt-android 5.0.0 (intempt-swift stays at 0.4.0, already

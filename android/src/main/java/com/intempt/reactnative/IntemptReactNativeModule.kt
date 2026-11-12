@@ -286,7 +286,7 @@ class IntemptReactNativeModule(
             return
         }
         withInstance(instanceName, "consent", promise) {
-            promise.resolve(it.consent(parsed, validUntil.toLong(), email, message, category))
+            promise.resolve(it.consent(parsed, consentValidUntilMillis(validUntil), email, message, category))
         }
     }
 
@@ -482,35 +482,35 @@ class IntemptReactNativeModule(
      * same payload.
      */
     private fun putValue(map: WritableMap, key: String, value: Any?) {
-        when (value) {
+        when (val unwrapped = unwrapJson(value)) {
             null -> map.putNull(key)
-            is Boolean -> map.putBoolean(key, value)
-            is Int -> map.putInt(key, value)
-            is Double -> map.putDouble(key, value)
+            is Boolean -> map.putBoolean(key, unwrapped)
+            is Int -> map.putInt(key, unwrapped)
+            is Double -> map.putDouble(key, unwrapped)
             // Long, Float and any other Number cross as a double: the bridge carries no wider
             // numeric type, and putString would change the payload's JSON type.
-            is Number -> map.putDouble(key, value.toDouble())
-            is String -> map.putString(key, value)
-            is Map<*, *> -> map.putMap(key, writableMap(value))
-            is Iterable<*> -> map.putArray(key, writableArray(value))
-            is Array<*> -> map.putArray(key, writableArray(value.asIterable()))
-            else -> map.putString(key, value.toString())
+            is Number -> map.putDouble(key, unwrapped.toDouble())
+            is String -> map.putString(key, unwrapped)
+            is Map<*, *> -> map.putMap(key, writableMap(unwrapped))
+            is Iterable<*> -> map.putArray(key, writableArray(unwrapped))
+            is Array<*> -> map.putArray(key, writableArray(unwrapped.asIterable()))
+            else -> map.putString(key, unwrapped.toString())
         }
     }
 
     /** The array half of [putValue]. Same ordering, same recursion. */
     private fun pushValue(array: WritableArray, value: Any?) {
-        when (value) {
+        when (val unwrapped = unwrapJson(value)) {
             null -> array.pushNull()
-            is Boolean -> array.pushBoolean(value)
-            is Int -> array.pushInt(value)
-            is Double -> array.pushDouble(value)
-            is Number -> array.pushDouble(value.toDouble())
-            is String -> array.pushString(value)
-            is Map<*, *> -> array.pushMap(writableMap(value))
-            is Iterable<*> -> array.pushArray(writableArray(value))
-            is Array<*> -> array.pushArray(writableArray(value.asIterable()))
-            else -> array.pushString(value.toString())
+            is Boolean -> array.pushBoolean(unwrapped)
+            is Int -> array.pushInt(unwrapped)
+            is Double -> array.pushDouble(unwrapped)
+            is Number -> array.pushDouble(unwrapped.toDouble())
+            is String -> array.pushString(unwrapped)
+            is Map<*, *> -> array.pushMap(writableMap(unwrapped))
+            is Iterable<*> -> array.pushArray(writableArray(unwrapped))
+            is Array<*> -> array.pushArray(writableArray(unwrapped.asIterable()))
+            else -> array.pushString(unwrapped.toString())
         }
     }
 

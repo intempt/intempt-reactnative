@@ -303,11 +303,22 @@ public class IntemptReactNative: NSObject {
             resolve(
                 instance.consent(
                     action: consentAction,
-                    validUntil: validUntil.doubleValue,
+                    validUntil: Self.consentDuration(
+                        untilUnixSeconds: validUntil.doubleValue, now: Date()),
                     email: email,
                     message: message,
                     category: category))
         }
+    }
+
+    /// JS documents consent `validUntil` as absolute Unix seconds (src/index.ts); intempt-swift
+    /// from 0.5.0 (INT-5956) takes seconds FROM NOW and sends now + duration. Passing the absolute
+    /// value through would push the expiry ~54 years out. A past time clamps to 0, "expires now",
+    /// the withdrawal intempt-swift documents; NaN does too. `.infinity` passes through, which
+    /// intempt-swift sends as -1, unlimited.
+    static func consentDuration(untilUnixSeconds: Double, now: Date) -> TimeInterval {
+        let remaining = untilUnixSeconds - now.timeIntervalSince1970
+        return remaining > 0 ? remaining : 0
     }
 
     // MARK: - Identity
@@ -442,9 +453,7 @@ public class IntemptReactNative: NSObject {
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
         withInstance(instanceName, "variation", reject) { instance in
-            let flagContext = FlagContext(
-                userId: context["userId"] as? String,
-                profileId: context["profileId"] as? String)
+            let flagContext = Self.flagContext(from: context, instance: instance)
 
             instance.variation(
                 key: key, context: flagContext, defaultValue: .null
@@ -460,6 +469,26 @@ public class IntemptReactNative: NSObject {
         }
     }
 
+    /// intempt-swift before 0.5.0 used a caller's FlagContext as-is, so a `{}` or `{userId}`
+    /// context reached the server without the stored profileId (a 400 for `{}`, which resolves
+    /// to the default). Android merges it in; this does the same here (INT-7453). Empty counts
+    /// as missing because intempt-swift omits an empty profileId from the request. Kept after
+    /// the intempt-swift fix: it is harmless there and correct against older pins.
+    private static func flagContext(from context: [String: Any], instance: IntemptInstance)
+        -> FlagContext
+    {
+        let ids = flagContextIds(from: context, storedProfileId: instance.getProfileId())
+        return FlagContext(userId: ids.userId, profileId: ids.profileId)
+    }
+
+    /// Split from `flagContext` so ios/Tests can cover the choice without an IntemptInstance.
+    static func flagContextIds(
+        from context: [String: Any], storedProfileId: @autoclosure () -> String?
+    ) -> (userId: String?, profileId: String?) {
+        let supplied = (context["profileId"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        return (context["userId"] as? String, supplied ?? storedProfileId())
+    }
+
     @objc
     func allFlags(
         _ instanceName: String,
@@ -468,9 +497,7 @@ public class IntemptReactNative: NSObject {
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
         withInstance(instanceName, "allFlags", reject) { instance in
-            let flagContext = FlagContext(
-                userId: context["userId"] as? String,
-                profileId: context["profileId"] as? String)
+            let flagContext = Self.flagContext(from: context, instance: instance)
 
             instance.allFlags(context: flagContext) { values in
                 resolve(values.mapValues { TypeBridge.any(from: $0) })

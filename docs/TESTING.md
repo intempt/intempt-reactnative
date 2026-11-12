@@ -31,8 +31,8 @@ about Kotlin or Swift.
 | Layer | Files | Lines added by the flag surface | Mutated? | In any unit test? |
 |---|---|---|---|---|
 | TypeScript | `src/index.ts`, `src/types.ts`, `src/NativeIntempt.ts` | 136 | ✅ `src/**/*.ts`, less the spec | ✅ jest |
-| Kotlin | `android/**/*.kt` | 164 | ❌ | ❌ |
-| Swift / ObjC++ | `ios/*.swift`, `ios/*.mm` | 87 | ❌ | ❌ |
+| Kotlin | `android/**/*.kt` | 164 | ❌ | Pure helpers only: `android/src/test` (consent units, flag values), plain JVM |
+| Swift / ObjC++ | `ios/*.swift`, `ios/*.mm` | 87 | ❌ | Pure helpers only: `ios/Tests` (consent duration, flag context ids) |
 
 Counts read from `git diff --numstat origin/main` on the branch that added the flag surface. They
 drift as the branch moves; re-run that command rather than trusting these three numbers.
@@ -40,7 +40,8 @@ drift as the branch moves; re-run that command rather than trusting these three 
 **Widening `mutate` is not the fix, because it is not possible.** Stryker is a JavaScript mutation
 framework: it parses TypeScript and JavaScript and has no Kotlin or Swift mutator. Covering the
 native halves needs a different tool per platform (PIT for the JVM, `muter` for Swift), each of
-which needs that platform's test suite to exist first — and neither bridge is in a suite today.
+which needs that platform's test suite to cover the bridge first. Each bridge has only a few
+pure-helper unit tests, and nothing that touches React Native's native libraries.
 
 **So this is what actually watches the native code:**
 

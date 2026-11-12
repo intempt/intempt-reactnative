@@ -18,6 +18,13 @@ Pod::Spec.new do |s|
   s.swift_version = '5.9'
 
   s.source_files = 'ios/**/*.{h,m,mm,swift}'
+  s.exclude_files = 'ios/Tests/**/*'
+
+  # INT-7453: the only Swift unit layer, and not in CI. It needs React, so it runs from an app
+  # workspace whose Podfile opts in: `pod 'IntemptReactNative', :path => '..', :testspecs => ['Tests']`.
+  s.test_spec 'Tests' do |test_spec|
+    test_spec.source_files = 'ios/Tests/**/*.swift'
+  end
   s.requires_arc = true
   s.preserve_paths = 'LICENSE', 'NOTICE', 'README.md', 'package.json'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
@@ -41,12 +48,18 @@ Pod::Spec.new do |s|
   # because intempt-swift shipped the flag surface as 0.2.0. '0.2.0' itself went stale the
   # same way once this PR added a call to useIPAddressForGeolocation, which 0.2.0 lacks.
   #
+  # 0.5.0 (intempt-swift#34) changes what consent's validUntil means: seconds from now, not an
+  # absolute time (INT-5956). The bridge converts JS's absolute Unix seconds before the call
+  # (IntemptReactNative.consentDuration), so this pin and that conversion move together: against
+  # 0.4.x the conversion would send a duration where an absolute epoch is expected. 0.5.0 also
+  # merges the stored profileId into a caller's FlagContext (INT-7453).
+  #
   # Exact rather than '~> 0.3': this bridge compiles against symbols it does not own, so a
   # new SDK minor should not reach a customer's build before this repo's CI has seen it.
   #
   # `npm run check:native-pins` resolves this against trunk on every CI run and downloads
   # what it selects to confirm the symbol is really in there. Do not tag while it is red.
-  s.dependency 'Intempt', '0.4.0'
+  s.dependency 'Intempt', '0.5.0'
 
   # install_modules_dependencies wires React-Core, and on the new architecture
   # also ReactCommon, RCT-Folly, glog and the generated spec. Available in
