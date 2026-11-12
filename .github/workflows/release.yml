@@ -19,7 +19,10 @@ permissions:
 
 jobs:
   publish-npm:
-    runs-on: intempt-ubuntu-github-runner
+    # GitHub-hosted on purpose: npm rejects trusted publishing/provenance from a self-hosted
+    # runner (v0.4.0, run 43263493214: E422 "Unsupported GitHub Actions runner environment").
+    # intempt-node's release.yml hit the same and runs on ubuntu-latest too.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
