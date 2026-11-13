@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.5.0 — unreleased
+
+Bumps the pinned native SDKs to intempt-android 7.0.0 and intempt-swift (CocoaPods `Intempt`)
+0.6.0. Both are breaking releases underneath, so this package moves to 0.5.0 even though its JS
+API is unchanged. Both are published; re-run `npm run check:native-pins` before releasing.
+
+### Changed
+
+- **Send-once delivery (INT-7436).** Each event batch and each consent is sent once. Only a `503`
+  or `429` gets one resend, after its `Retry-After` (1–60 s). Any other answered status, and a
+  failure after the request was written (a timeout), drops it on the first answer. Only a request
+  that never reached the server (offline, DNS, connection refused) is kept for the next flush,
+  with no backoff. Events that used to sit in the queue on a bad key or a `5xx` are now dropped.
+- **Write calls report failures instead of throwing.** `track`, `identify`, `group`, `record`,
+  the product calls and `consent` still resolve to whether the record was queued, and never
+  reject for a delivery problem. The native SDKs report a dropped or kept batch once, on its final
+  outcome, through their delivery-failure hooks (`onDeliveryFailure` on iOS, `setErrorListener`
+  with `IntemptError.DeliveryFailure` on Android); this package does not surface those to JS yet.
+- **`allFlags` no longer records exposures (INT-7456).** A bulk read evaluates without recording
+  an exposure or spending a `ONCE` display; a single-key `variation` read records as before. Takes
+  effect once audience-service honours the field; until then the service records as before.
+- **Android: an untitled `group()` is now named "Identify" (INT-7448)**, like iOS and every other
+  Intempt SDK; since intempt-android 3.0.0 it was "Group". Reports, segments or metrics that filter
+  on the event name "Group" stop matching new Android data; filter on type `group` instead.
+- Android: the session id is minted before `init()` resolves, so the first event no longer carries
+  an empty session id (INT-7446).
+
 ## 0.4.1
 
 Same code as 0.4.0, which was tagged but never reached npm: its publish ran on the self-hosted

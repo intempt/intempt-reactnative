@@ -54,12 +54,17 @@ Pod::Spec.new do |s|
   # 0.4.x the conversion would send a duration where an absolute epoch is expected. 0.5.0 also
   # merges the stored profileId into a caller's FlagContext (INT-7453).
   #
+  # 0.6.0 is BREAKING for delivery, not for this bridge: each batch and consent is sent once
+  # (only 503/429 get one resend) and failures go to onDeliveryFailure, while track/consent still
+  # return whether the record was queued. No public symbol the bridge calls changed signature;
+  # FlagDetail, FlagError and DeliveryFailure are additions it does not wrap yet.
+  #
   # Exact rather than '~> 0.3': this bridge compiles against symbols it does not own, so a
   # new SDK minor should not reach a customer's build before this repo's CI has seen it.
   #
   # `npm run check:native-pins` resolves this against trunk on every CI run and downloads
   # what it selects to confirm the symbol is really in there. Do not tag while it is red.
-  s.dependency 'Intempt', '0.5.0'
+  s.dependency 'Intempt', '0.6.0'
 
   # install_modules_dependencies wires React-Core, and on the new architecture
   # also ReactCommon, RCT-Folly, glog and the generated spec. Available in

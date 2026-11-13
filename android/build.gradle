@@ -96,7 +96,12 @@ dependencies {
   // consent(validUntil) is still absolute epoch milliseconds (Intempt.kt), which is what
   // consentValidUntilMillis sends (INT-7449); unlike intempt-swift 0.5.0 it did not become a
   // duration.
-  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '6.0.0'}"
+  //
+  // 7.0.0 is BREAKING for delivery and analytics, not for this bridge's calls: batches and consents
+  // are sent once (only 503/429 get one resend), DeliveryFailureListener changed shape (the bridge
+  // implements none), group() without a title is named "Identify" instead of "Group", and allFlags
+  // stops recording exposures. track/identify/group/consent keep returning the queued Boolean.
+  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '7.0.0'}"
 
   // JsonLeaves.kt and FlagValueTest import kotlinx.serialization.json directly, so the bridge
   // declares it rather than leaning on intempt-android's transitive copy (2.0.1 shipped it as
