@@ -253,8 +253,8 @@ export class IntemptInstance {
       NativeIntempt.group(
         this.instanceName,
         accountId,
-        // Same reservation as identify(); the default here was also the wrong
-        // word — a group event is named "Group", not "Identify".
+        // Same reservation as identify(): the SDKs name an untitled group event
+        // themselves ("Identify" on both from intempt-android 7.0.0).
         options.eventTitle ?? null,
         encodeProperties(options.accountAttributes)
       )

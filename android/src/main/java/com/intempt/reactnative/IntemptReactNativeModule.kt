@@ -195,7 +195,7 @@ class IntemptReactNativeModule(
         )
     }
 
-    /** [eventTitle] nullable for the same reason as [identify]; GroupEvent names itself "Group". */
+    /** [eventTitle] nullable for the same reason as [identify]; from intempt-android 7.0.0 GroupEvent names itself "Identify". */
     @ReactMethod
     fun group(
         instanceName: String,
