@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.1 — unreleased
+
+Bumps the pinned intempt-swift (CocoaPods `Intempt`) from 0.6.0 to 0.6.2. iOS only; the JS API
+and the Android pin (intempt-android 7.0.0) are unchanged. Re-run `npm run check:native-pins`
+before releasing.
+
+### Fixed
+
+- **iOS: the SDK no longer sends "Session end" (INT-5603).** The server writes session_end itself
+  with the source stamped; the SDK's copy arrived without a sourceId, showed as source "-1" in
+  Events > Live and created a separate profile for each ended session.
+- **iOS: every session sends "Session start", not only sessions with a tracked event
+  (INT-5604).** An app that only called `initialize` used to send ends and no starts.
+
 ## 0.5.0 — unreleased
 
 Bumps the pinned native SDKs to intempt-android 7.0.0 and intempt-swift (CocoaPods `Intempt`)

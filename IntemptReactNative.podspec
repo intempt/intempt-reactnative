@@ -59,12 +59,16 @@ Pod::Spec.new do |s|
   # return whether the record was queued. No public symbol the bridge calls changed signature;
   # FlagDetail, FlagError and DeliveryFailure are additions it does not wrap yet.
   #
+  # 0.6.2 changes no bridge-called symbol: 0.6.1 sends "Session start" for every session
+  # (INT-5604) and 0.6.2 stops the SDK sending "Session end", which the server writes itself
+  # (INT-5603). RN apps on iOS only get those fixes through this pin.
+  #
   # Exact rather than '~> 0.3': this bridge compiles against symbols it does not own, so a
   # new SDK minor should not reach a customer's build before this repo's CI has seen it.
   #
   # `npm run check:native-pins` resolves this against trunk on every CI run and downloads
   # what it selects to confirm the symbol is really in there. Do not tag while it is red.
-  s.dependency 'Intempt', '0.6.0'
+  s.dependency 'Intempt', '0.6.2'
 
   # install_modules_dependencies wires React-Core, and on the new architecture
   # also ReactCommon, RCT-Folly, glog and the generated spec. Available in
