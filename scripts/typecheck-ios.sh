@@ -53,11 +53,16 @@ cat > "$WORK/React.swift" <<'STUB'
 import Foundation
 public typealias RCTPromiseResolveBlock = (Any?) -> Void
 public typealias RCTPromiseRejectBlock = (String?, String?, Error?) -> Void
+open class RCTEventEmitter: NSObject {
+    open func supportedEvents() -> [String]! { [] }
+    open class func requiresMainQueueSetup() -> Bool { false }
+    public func sendEvent(withName name: String!, body: Any!) {}
+}
 STUB
 
 # `import React` would pull in the real framework, which is not present here.
 sed 's/^import React$//' "$HERE/ios/IntemptReactNative.swift" > "$WORK/IntemptReactNative.swift"
-cp "$HERE/ios/TypeBridge.swift" "$HERE/ios/FlagMaps.swift" "$WORK/"
+cp "$HERE/ios/TypeBridge.swift" "$HERE/ios/FlagHandles.swift" "$WORK/"
 
 echo "typechecking the bridge against Intempt ..."
 swiftc -typecheck -I "$BUILD/Modules" -I "$BUILD" "$WORK"/*.swift

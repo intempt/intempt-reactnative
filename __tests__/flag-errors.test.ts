@@ -4,7 +4,7 @@
  */
 
 import { DeviceEventEmitter } from 'react-native';
-import { nativeCalls } from './setup';
+import { nativeCalls, nativeRejections } from './setup';
 import { init, __resetInstanceRegistryForTests } from '../src/index';
 import type { FlagError } from '../src/index';
 
@@ -35,7 +35,7 @@ describe('onFlagError', () => {
     ]);
     DeviceEventEmitter.emit(EVENT, { instanceName: 'default', key: 'banner', kind: 'server', status: 503 });
     DeviceEventEmitter.emit(EVENT, { instanceName: 'default', key: null, kind: 'network' });
-    expect(seen).toEqual([
+    expect(seen).toStrictEqual([
       { key: 'banner', kind: 'server', status: 503 },
       { key: null, kind: 'network' },
     ]);
@@ -65,6 +65,7 @@ describe('onFlagError', () => {
     DeviceEventEmitter.emit(EVENT, { instanceName: 'default', key: 'banner', kind: 'server' });
     expect(seen).toEqual([]);
     expect(s.onFlagError).toBeNull();
+    expect(DeviceEventEmitter.listenerCount(EVENT)).toBe(0);
   });
 
   it('replacing it keeps one subscription', async () => {
@@ -87,6 +88,15 @@ describe('onFlagError', () => {
     expect(() =>
       DeviceEventEmitter.emit(EVENT, { instanceName: 'default', key: 'k', kind: 'parse' })
     ).not.toThrow();
+    s.onFlagError = null;
+  });
+
+  it('a native failure to switch the listener is absorbed', async () => {
+    const s = await sdk();
+    nativeRejections.setFlagErrorListener = { code: 'unknown', message: 'gone' };
+    s.onFlagError = () => undefined;
+    await Promise.resolve();
+    expect(s.onFlagError).toBeInstanceOf(Function);
     s.onFlagError = null;
   });
 

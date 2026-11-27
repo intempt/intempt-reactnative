@@ -103,10 +103,10 @@ dependencies {
   // stops recording exposures. track/identify/group/consent keep returning the queued Boolean.
   //
   // 8.0.0 is BREAKING: variation reads flags only (/flags/evaluate; experiments and
-  // personalizations moved to choose(), which this bridge does not wrap), and the allFlags map
-  // records an exposure when a value is read (get, values, entries). Its signature is unchanged,
-  // so a whole-map copy still compiles and would expose every served flag; the bridge keeps the
-  // map native and reads one key per JS read (FlagMaps).
+  // personalizations moved to choose(), bridged here), and allFlags returns a FlagMap that records
+  // an exposure when a value is read (get, values, entries). A whole-map copy would expose every
+  // served flag, so the bridge copies FlagMap.snapshot() (no exposure) and calls expose(key) per
+  // key JS reads (FlagHandles).
   implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '8.0.0'}"
 
   // JsonLeaves.kt and FlagValueTest import kotlinx.serialization.json directly, so the bridge

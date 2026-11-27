@@ -110,13 +110,19 @@ export interface Spec extends TurboModule {
   /** `options` is `{names?, groups?, disableExposure}`. Resolves to Choice objects. */
   choose(instanceName: string, context: Object, options: Object): Promise<Object[]>;
   /**
-   * Resolves to `{id, keys}`: the served keys and a handle to the map, which stays native.
-   * intempt-swift 0.7.0 and intempt-android 8.0.0 record an exposure when a value is read from
-   * that map, so no value crosses here; `flagValue` reads one per key the app reads.
+   * Resolves to `{token?, values}`: the native `snapshot()`, which records no exposure, and a
+   * token for the map that served it, present when it has a key to expose. `exposeFlag` reports a
+   * JS read of a key through that map; the map is released once every key was exposed, or on
+   * reset/logOut of its instance.
    */
   allFlags(instanceName: string, context: Object): Promise<Object>;
-  /** Blocking synchronous: `{value}` for a served key (null included), `{}` otherwise. */
-  flagValue(mapId: string, key: string): Object;
+  exposeFlag(token: string, key: string): Promise<void>;
+  /** Turns the native `onFlagError` on or off; errors arrive as `IntemptFlagError` events. */
+  setFlagErrorListener(instanceName: string, enabled: boolean): Promise<void>;
+  // NativeEventEmitter's contract: iOS counts listeners (RCTEventEmitter drops events with none),
+  // Android warns without these.
+  addListener(eventName: string): void;
+  removeListeners(count: number): void;
 
   // Personalization — feeds.
   products(

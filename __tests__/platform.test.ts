@@ -95,4 +95,15 @@ describe('a platform with no native module', () => {
       code: IntemptErrorCode.MissingConfiguration,
     });
   });
+
+  it('setting onFlagError does not throw, and listens for nothing', async () => {
+    // NativeEventEmitter refuses a null module; with no module there is no event to wait for.
+    const sdk = importSdkWithNullNativeModule();
+    const instance = new sdk.IntemptInstance('default');
+    expect(() => {
+      instance.onFlagError = () => undefined;
+    }).not.toThrow();
+    expect(instance.onFlagError).toBeInstanceOf(Function);
+    await Promise.resolve();
+  });
 });

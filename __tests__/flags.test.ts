@@ -117,7 +117,7 @@ describe('allFlags', () => {
 
   it('answers values without exposing when the native map had nothing to expose', async () => {
     // No token: the native side kept no map, so there is nothing to expose through.
-    serve({ banner: 'blue' }, undefined);
+    serve({ banner: 'blue' }, null);
     const flags = await (await sdk()).allFlags({});
     expect(flags.banner).toBe('blue');
     expect(exposed()).toEqual([]);

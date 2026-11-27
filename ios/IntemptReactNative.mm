@@ -14,12 +14,13 @@
 //
 
 #import <React/RCTBridgeModule.h>
+#import <React/RCTEventEmitter.h>
 
 #ifdef RCT_NEW_ARCH_ENABLED
 #import <RNIntemptSpec/RNIntemptSpec.h>
 #endif
 
-@interface RCT_EXTERN_MODULE (IntemptReactNative, NSObject)
+@interface RCT_EXTERN_MODULE (IntemptReactNative, RCTEventEmitter)
 
 // MARK: - Lifecycle
 
@@ -184,9 +185,17 @@ RCT_EXTERN_METHOD(allFlags
                   : (RCTPromiseResolveBlock)resolve rejecter
                   : (RCTPromiseRejectBlock)reject)
 
-RCT_EXTERN__BLOCKING_SYNCHRONOUS_METHOD(flagValue
-                                        : (NSString *)mapId key
-                                        : (NSString *)key)
+RCT_EXTERN_METHOD(exposeFlag
+                  : (NSString *)token key
+                  : (NSString *)key resolver
+                  : (RCTPromiseResolveBlock)resolve rejecter
+                  : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(setFlagErrorListener
+                  : (NSString *)instanceName enabled
+                  : (BOOL)enabled resolver
+                  : (RCTPromiseResolveBlock)resolve rejecter
+                  : (RCTPromiseRejectBlock)reject)
 
 // MARK: - Personalization
 

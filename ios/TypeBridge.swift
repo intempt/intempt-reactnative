@@ -110,6 +110,15 @@ enum TypeBridge {
         return out
     }
 
+    /// The `IntemptFlagError` event: the native FlagError plus the instance it belongs to.
+    static func dictionary(from error: FlagError, instanceName: String) -> [String: Any] {
+        var out: [String: Any] = [
+            "instanceName": instanceName, "key": error.key ?? NSNull(), "kind": error.kind.rawValue,
+        ]
+        if let status = error.status { out["status"] = status }
+        return out
+    }
+
     static func dictionary(from choice: Choice) -> [String: Any] {
         var out: [String: Any] = ["name": choice.name, "body": any(from: choice.body)]
         if let group = choice.group { out["group"] = group }

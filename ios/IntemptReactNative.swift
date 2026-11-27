@@ -14,9 +14,18 @@ import Intempt
 import React
 
 @objc(IntemptReactNative)
-public class IntemptReactNative: NSObject {
+public class IntemptReactNative: RCTEventEmitter {
 
-    @objc public static func requiresMainQueueSetup() -> Bool {
+    /// src/index.ts FLAG_ERROR_EVENT; Android sends the same name.
+    static let flagErrorEvent = "IntemptFlagError"
+
+    private let flagHandles = FlagHandles()
+
+    public override func supportedEvents() -> [String]! {
+        [Self.flagErrorEvent]
+    }
+
+    @objc public override static func requiresMainQueueSetup() -> Bool {
         // Nothing here touches UIKit at construction time. AutomaticProperties
         // does resolve screen facts on the main thread, but the SDK's own
         // `initialize` warms that, not this class's init.
@@ -348,6 +357,7 @@ public class IntemptReactNative: NSObject {
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
         withInstance(instanceName, "logOut", reject) { instance in
+            flagHandles.release(instanceName)
             instance.logOut()
             resolve(nil)
         }
@@ -360,6 +370,7 @@ public class IntemptReactNative: NSObject {
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
         withInstance(instanceName, "reset", reject) { instance in
+            flagHandles.release(instanceName)
             instance.reset()
             resolve(nil)
         }
@@ -514,23 +525,52 @@ public class IntemptReactNative: NSObject {
         withInstance(instanceName, "allFlags", reject) { instance in
             let flagContext = Self.flagContext(from: context, instance: instance)
 
-            instance.allFlags(context: flagContext) { values in
-                let id = Self.flagMaps.register(values)
-                resolve(["id": id, "keys": values.keys])
+            instance.allFlags(context: flagContext) { [weak self] map in
+                // snapshot() records nothing; the first JS read of a key comes back through
+                // exposeFlag and this map's expose(_:).
+                let values = map.snapshot()
+                var out: [String: Any] = ["values": values.mapValues { TypeBridge.any(from: $0) }]
+                if let token = self?.flagHandles.register(
+                    instanceName, keys: Set(values.keys), expose: { map.expose($0) })
+                {
+                    out["token"] = token
+                }
+                resolve(out)
             }
         }
     }
 
-    private static let flagMaps = FlagMaps<FlagValues>()
-
-    /// One value from a map `allFlags` registered: `{value}` when `key` was served (a served null
-    /// included), `{}` otherwise. The subscript is what records the key's exposure (intempt-swift
-    /// 0.7.0), so it runs only when JS reads the key; `keys` records nothing. Synchronous because
-    /// JS answers a plain property read with it.
+    /// A JS read of `key` from the allFlags answer `token`: that map's `expose(_:)`, once.
     @objc
-    func flagValue(_ mapId: String, key: String) -> [String: Any] {
-        guard let value = Self.flagMaps.map(mapId)?[key] else { return [:] }
-        return ["value": TypeBridge.any(from: value)]
+    func exposeFlag(
+        _ token: String,
+        key: String,
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        flagHandles.expose(token, key: key)
+        resolve(nil)
+    }
+
+    /// The native onFlagError for one instance, forwarded as an `IntemptFlagError` event.
+    @objc
+    func setFlagErrorListener(
+        _ instanceName: String,
+        enabled: Bool,
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        withInstance(instanceName, "setFlagErrorListener", reject) { instance in
+            instance.onFlagError =
+                enabled
+                ? { [weak self] error in
+                    self?.sendEvent(
+                        withName: Self.flagErrorEvent,
+                        body: TypeBridge.dictionary(from: error, instanceName: instanceName))
+                }
+                : nil
+            resolve(nil)
+        }
     }
 
     // MARK: - Personalization

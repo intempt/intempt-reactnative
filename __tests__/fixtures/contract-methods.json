@@ -61,7 +61,10 @@
     "getSdkVersion": "Bridged, but not a contract method. Reports the NATIVE SDK's version \u2014 intempt-swift or intempt-android \u2014 which is what someone debugging an integration needs and which no contract method exposes. Kept in its own category rather than notBridged, because it IS on the spec."
   },
   "bridgeInternal": {
-    "flagValue": "Bridged, but not a contract method: the per-key read behind allFlags. intempt-swift 0.7.0 and intempt-android 8.0.0 record an exposure when a value is read from the allFlags map, so the map stays native and the JS allFlags object fetches one value per key the app reads. Reached only through allFlags, so it has no fixture of its own; __tests__/flags.test.ts covers it."
+    "exposeFlag": "Bridged, but not a contract method: allFlags resolves the native snapshot() (no exposure) and a token for the map that served it; the first JS read of a key calls exposeFlag(token, key), which calls that map's expose(key). Reached only through allFlags; __tests__/flags.test.ts covers it.",
+    "setFlagErrorListener": "Bridged, but not a contract method: turns the native onFlagError on or off for one instance. Reached only through the JS onFlagError property; __tests__/flag-errors.test.ts covers it.",
+    "addListener": "NativeEventEmitter's own contract, not an SDK method: iOS's RCTEventEmitter counts listeners and drops events without one, and Android warns when the module lacks it. Used only by onFlagError.",
+    "removeListeners": "NativeEventEmitter's own contract, not an SDK method; the counterpart of addListener. Used only by onFlagError."
   },
   "notBridged": {
     "isOptedIn": "Pure JavaScript convenience over hasOptedOut(). Never crosses the bridge, so it has no native method and no fixture.",

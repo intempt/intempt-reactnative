@@ -18,6 +18,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.intempt.core.Intempt
 import com.intempt.core.IntemptInstance
 import com.intempt.core.types.AutocaptureOptions
@@ -60,9 +61,10 @@ class IntemptReactNativeModule(
      */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val flagMaps = FlagMaps()
+    private val flagHandles = FlagHandles()
 
     override fun invalidate() {
+        flagHandles.clear()
         scope.cancel()
         super.invalidate()
     }
@@ -307,6 +309,7 @@ class IntemptReactNativeModule(
     @ReactMethod
     fun logOut(instanceName: String, promise: Promise) =
         withInstance(instanceName, "logOut", promise) {
+            flagHandles.release(instanceName)
             it.logOut()
             promise.resolve(null)
         }
@@ -314,6 +317,7 @@ class IntemptReactNativeModule(
     @ReactMethod
     fun reset(instanceName: String, promise: Promise) =
         withInstance(instanceName, "reset", promise) {
+            flagHandles.release(instanceName)
             it.reset()
             promise.resolve(null)
         }
@@ -463,11 +467,15 @@ class IntemptReactNativeModule(
     ) = withInstance(instanceName, "allFlags", promise) { instance ->
         scope.launch {
             try {
-                val handle = flagMaps.register(instance.allFlags(ReadableMapConverter.toFlagContext(context)))
+                val map = instance.allFlags(ReadableMapConverter.toFlagContext(context))
+                // snapshot() records nothing. Off flags (null) are left out, as intempt-swift's
+                // snapshot leaves them out, so both platforms answer the same keys.
+                val values = map.snapshot().filterValues { it != null }
+                val token = flagHandles.register(instanceName, values.keys, map::expose)
                 promise.resolve(
                     Arguments.createMap().apply {
-                        putString("id", handle.id)
-                        putArray("keys", Arguments.fromList(handle.keys))
+                        token?.let { putString("token", it) }
+                        putMap("values", writableMap(values))
                     },
                 )
             } catch (e: Exception) {
@@ -479,20 +487,44 @@ class IntemptReactNativeModule(
         }
     }
 
-    /**
-     * One value from a map [allFlags] registered: `{value}` when [key] was served (a served null
-     * included), `{}` otherwise. This read is what records the key's exposure (intempt-android
-     * 8.0.0), so it happens only when JS reads the key. Synchronous because JS answers a plain
-     * property read with it.
-     */
-    @ReactMethod(isBlockingSynchronousMethod = true)
-    fun flagValue(
-        mapId: String,
+    /** A JS read of [key] from the allFlags answer [token]: that map's expose(key), once. */
+    @ReactMethod
+    fun exposeFlag(
+        token: String,
         key: String,
-    ): WritableMap =
-        Arguments.createMap().apply {
-            flagMaps.read(mapId, key)?.let { putValue(this, "value", it.value) }
-        }
+        promise: Promise,
+    ) {
+        flagHandles.expose(token, key)
+        promise.resolve(null)
+    }
+
+    /** The native onFlagError for one instance, forwarded as an `IntemptFlagError` event. */
+    @ReactMethod
+    fun setFlagErrorListener(
+        instanceName: String,
+        enabled: Boolean,
+        promise: Promise,
+    ) = withInstance(instanceName, "setFlagErrorListener", promise) { instance ->
+        instance.onFlagError =
+            if (enabled) {
+                { error ->
+                    reactApplicationContext
+                        .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                        .emit(FLAG_ERROR_EVENT, writableMap(flagErrorFields(instanceName, error)))
+                }
+            } else {
+                null
+            }
+        promise.resolve(null)
+    }
+
+    // NativeEventEmitter calls these and warns when they are missing. Android emits regardless of
+    // listener count, so there is nothing to track.
+    @ReactMethod
+    fun addListener(eventName: String) = Unit
+
+    @ReactMethod
+    fun removeListeners(count: Double) = Unit
 
     /**
      * A flag payload is arbitrary JSON, so it crosses with its type preserved.
@@ -695,6 +727,9 @@ class IntemptReactNativeModule(
 
     companion object {
         const val NAME = "IntemptReactNative"
+
+        /** src/index.ts FLAG_ERROR_EVENT; iOS sends the same name. */
+        private const val FLAG_ERROR_EVENT = "IntemptFlagError"
 
         /** Long enough for a slow network round trip, short enough to surface a stuck queue. */
         private const val FLUSH_TIMEOUT_MS = 30_000L

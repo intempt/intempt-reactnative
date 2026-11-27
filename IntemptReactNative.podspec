@@ -64,9 +64,9 @@ Pod::Spec.new do |s|
   # (INT-5603). RN apps on iOS only get those fixes through this pin.
   #
   # 0.7.0 is BREAKING: variation reads flags only (/flags/evaluate; experiments and
-  # personalizations moved to choose(), which this bridge does not wrap), and allFlags completes
-  # with FlagValues, which records an exposure when a value is read. The bridge therefore keeps
-  # that map native and reads one key per JS read (FlagMaps), never the whole map.
+  # personalizations moved to choose(), bridged here), and allFlags completes
+  # with FlagValues, which records an exposure when a value is read. The bridge copies
+  # snapshot() (no exposure) and calls the map's expose(_:) per key JS reads (FlagHandles).
   #
   # Exact rather than '~> 0.3': this bridge compiles against symbols it does not own, so a
   # new SDK minor should not reach a customer's build before this repo's CI has seen it.

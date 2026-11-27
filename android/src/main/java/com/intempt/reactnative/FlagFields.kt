@@ -2,6 +2,7 @@ package com.intempt.reactnative
 
 import com.intempt.core.types.Choice
 import com.intempt.core.types.FlagDetail
+import com.intempt.core.types.FlagError
 
 /**
  * intempt-android's FlagDetail as the JS `FlagDetail`: reason in its wire spelling, error code by
@@ -30,4 +31,16 @@ internal fun choiceFields(choice: Choice): Map<String, Any?> =
         choice.experienceId?.let { put("experienceId", it) }
         choice.variantId?.let { put("variantId", it) }
         choice.reason?.let { put("reason", it) }
+    }
+
+/** The `IntemptFlagError` event: the native FlagError plus the instance it belongs to. */
+internal fun flagErrorFields(
+    instanceName: String,
+    error: FlagError,
+): Map<String, Any?> =
+    buildMap {
+        put("instanceName", instanceName)
+        put("key", error.key)
+        put("kind", error.kind.wireName)
+        error.status?.let { put("status", it) }
     }

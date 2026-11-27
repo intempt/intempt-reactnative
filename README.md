@@ -200,6 +200,11 @@ nothing; reading `all.new_checkout` records that flag's exposure once for that o
 `Object.keys(all)` and `'new_checkout' in all` record nothing, but a spread, `Object.entries`
 or `JSON.stringify(all)` reads, and so exposes, every flag in it.
 
+**Failed flag requests are reported, not thrown.** Set `intempt.onFlagError = (error) => ...` to
+receive each one as `{ key, kind, status? }` (`kind`: `auth`, `bad_request`, `server`, `timeout`,
+`network`, `parse`; `key` is null for `allFlags`). The read itself still returns your default.
+Set it to `null` to stop.
+
 **`defaultValue` is required, and it is a real decision.** It is what renders when Intempt
 cannot be reached — a 5xx, a timeout, an unknown key. Choose the behaviour you already have.
 A flag lookup never throws for a service failure on either platform.

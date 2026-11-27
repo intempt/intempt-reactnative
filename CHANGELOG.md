@@ -12,12 +12,12 @@ release may be tagged before it is green.
   `/flags/evaluate` instead of `/optimization/choose-api`. A key that names an experiment or a
   personalization returns your default; read those with `choose()` (below).
 - **`allFlags` records an exposure only for the keys you read.** The native SDKs record a flag's
-  exposure when its value is read from the allFlags map. The bridge used to copy the whole map
-  into JavaScript, which with these pins would have exposed every served flag on every call. The
-  map now stays native: `allFlags` resolves an object listing the served keys, and reading a key
-  fetches that value (synchronously, once per object) and records its exposure. `Object.keys` and
-  `in` record nothing; a spread, `Object.entries` or `JSON.stringify` reads, and exposes, every key.
-  An object read after 128 newer `allFlags` calls answers `undefined` for keys it had not read yet.
+  exposure when its value is read from the allFlags map, so copying the map into JavaScript would
+  expose every served flag on every call. The bridge copies the native `snapshot()`, which records
+  nothing, and the first read of a key in the returned object asks that map to `expose` it (once
+  per object). `Object.keys` and `in` record nothing; a spread, `Object.entries` or `JSON.stringify`
+  reads, and exposes, every key. Off flags are not in the object on either platform. The native map
+  is kept until every key in the object has been read, or its instance resets or logs out.
 - **A flag read never throws (S11).** A blank or malformed key, a missing or non-object context,
   or an `undefined` default no longer throws `MissingConfiguration`: the read returns the default,
   and `variationDetail` says why (`reason: 'error'`, `errorCode: 'FLAG_NOT_FOUND'` for a bad key,
@@ -25,7 +25,9 @@ release may be tagged before it is green.
   Calling before `init()` still rejects with `not_initialized`.
 - Every flag read now crosses the bridge as the native `variationDetail`, so the native SDK owns
   the reason, the type check against your default (`TYPE_MISMATCH`) and the exposure. Native reads
-  keep a 60 s cache while their flag stream is connected.
+  keep a 60 s cache while their flag stream is connected. When the answer is your default with no
+  error code (an `off` or `killed` flag), an object default comes back as an equal copy, not the
+  same reference.
 
 ### Added
 
@@ -36,6 +38,9 @@ release may be tagged before it is green.
   `value`, `reason` (wire spelling: `targeted`, `not_in_rollout`, `off`, `killed`, `cached`,
   `error`, ...), `errorCode`, `error` (`kind`, `status`), `variationId`, `valueType`, `rule`,
   `variant`. iOS can answer `unanswered` (no reason on the wire); Android reads that case as `off`.
+- **`onFlagError`**, the native SDKs' property: set a function to receive every failed flag
+  request as `{key, kind, status?}` (`key` null for `allFlags`); `null` clears it. A hook that
+  throws is caught.
 - **`jsonVariation`**, and **`{disableExposure: true}`** on every flag read, to evaluate without
   recording an exposure (a pre-render or prefetch read the person may never see).
 - `context` is optional on every flag read, `allFlags` and `choose`; omitted, the native SDK uses

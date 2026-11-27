@@ -113,6 +113,14 @@ export interface FlagRequestError {
   status?: number;
 }
 
+/**
+ * A failed flag request, as the native SDKs report it to `onFlagError`: `key` is null for
+ * `allFlags`. The read itself still answered the caller's default.
+ */
+export interface FlagError extends FlagRequestError {
+  key: string | null;
+}
+
 /** `variationDetail`'s answer, field for field the native SDKs' FlagDetail. */
 export interface FlagDetail<T = unknown> {
   value: T;

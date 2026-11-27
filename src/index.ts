@@ -10,6 +10,8 @@
  * identity all live natively.
  */
 
+import { NativeEventEmitter } from 'react-native';
+import type { EmitterSubscription } from 'react-native';
 import NativeIntemptOrNull from './NativeIntempt';
 import type { Spec } from './NativeIntempt';
 import { IntemptError, IntemptErrorCode, fromNativeRejection } from './errors';
@@ -24,6 +26,7 @@ import type {
   ChooseOptions,
   FlagContext,
   FlagDetail,
+  FlagError,
   FlagErrorCode,
   FlagReadOptions,
   FlagReason,
@@ -49,6 +52,7 @@ export type {
   ChooseOptions,
   FlagContext,
   FlagDetail,
+  FlagError,
   FlagErrorCode,
   FlagReadOptions,
   FlagReason,
@@ -154,62 +158,60 @@ function flagContext(context: unknown): object {
 }
 
 interface NativeFlagMap {
-  id?: unknown;
-  keys?: unknown;
+  token?: unknown;
+  values?: unknown;
 }
 
 /**
- * The allFlags answer: the served keys, each value fetched from the native map on first read.
+ * The allFlags answer: the native `snapshot()` values, which recorded no exposure, behind a Proxy
+ * that exposes a key through the map that served it on its first read.
  *
- * Both native SDKs record an exposure when a value is read from their allFlags map, so the map
- * stays native and only a key the app reads crosses the bridge. Anything malformed is an empty
- * answer: a flag read never throws into a render.
+ * Both native SDKs record an exposure when a value is read from their allFlags map; the bridge
+ * cannot hand JS that map, so it copies the values and the read is reported back per key.
+ * Anything malformed is an empty answer: a flag read never throws into a render.
  */
 function exposingFlags(served: unknown): Record<string, unknown> {
-  const { id, keys } = (served ?? {}) as NativeFlagMap;
-  const listed = typeof id === 'string' && Array.isArray(keys) ? keys : [];
+  const { token, values } = (served ?? {}) as NativeFlagMap;
   const flags: Record<string, unknown> = {};
-  for (const key of listed) {
-    // defineProperty, not assignment: a served `__proto__` key must be an own property.
-    Object.defineProperty(flags, String(key), {
-      value: undefined,
-      writable: true,
-      enumerable: true,
-      configurable: true,
-    });
+  if (typeof values === 'object' && values !== null) {
+    for (const [key, value] of Object.entries(values)) {
+      // defineProperty, not assignment: a served `__proto__` key must be an own property.
+      Object.defineProperty(flags, key, { value, writable: true, enumerable: true, configurable: true });
+    }
   }
-  const fetched = new Set<PropertyKey>();
+  const settled = new Set<PropertyKey>();
   return new Proxy(flags, {
     get(target, property, receiver) {
       if (
         // Stryker disable next-line ConditionalExpression: equivalent, a symbol is never an own key here so hasOwnProperty rejects it too; the typeof narrows for tsc
         typeof property === 'string' &&
+        typeof token === 'string' &&
         Object.prototype.hasOwnProperty.call(target, property) &&
-        !fetched.has(property)
+        !settled.has(property)
       ) {
-        fetched.add(property);
-        target[property] = nativeFlagValue(id as string, property);
+        settled.add(property);
+        // Fire-and-forget, as the native expose is: a lost exposure costs one data point, never
+        // the value or a wait.
+        NativeIntempt.exposeFlag(token, property).catch(() => undefined);
       }
       return Reflect.get(target, property, receiver) as unknown;
     },
     set(target, property, value, receiver) {
-      // A value the caller wrote is theirs: no later read may replace it with the served one.
-      fetched.add(property);
+      // A value the caller wrote is theirs: reading it back is not an exposure of the served one.
+      settled.add(property);
       return Reflect.set(target, property, value, receiver);
     },
   });
 }
 
-function nativeFlagValue(mapId: string, key: string): unknown {
-  try {
-    // A null answer throws here and so reads as absent, like any failed read.
-    return (NativeIntempt.flagValue(mapId, key) as { value?: unknown }).value;
-  }
-  // Stryker disable next-line BlockStatement: equivalent, an emptied catch also returns undefined
-  catch {
-    return undefined;
-  }
+const FLAG_ERROR_EVENT = 'IntemptFlagError';
+
+interface NativeFlagErrorEvent extends FlagError {
+  instanceName: string;
 }
+
+// Created on first use and only where the native module exists: NativeEventEmitter needs it.
+let flagErrorEmitter: NativeEventEmitter | undefined;
 
 /**
  * One configured Intempt instance.
@@ -528,6 +530,38 @@ export class IntemptInstance {
       NativeIntempt.choose(this.instanceName, flagContext(context), request)
     );
     return Array.isArray(choices) ? (choices as Choice[]) : [];
+  }
+
+  private flagErrorHandler: ((error: FlagError) => void) | null = null;
+  private flagErrorSubscription: EmitterSubscription | undefined;
+
+  /**
+   * Called for every failed flag request (`variation`, the typed reads, `variationDetail`,
+   * `allFlags`) with the native FlagError; the read still answers the caller's default. A hook
+   * that throws is caught. `null` clears it. Same property as the native SDKs' `onFlagError`.
+   */
+  get onFlagError(): ((error: FlagError) => void) | null {
+    return this.flagErrorHandler;
+  }
+
+  set onFlagError(handler: ((error: FlagError) => void) | null) {
+    this.flagErrorSubscription?.remove();
+    this.flagErrorSubscription = undefined;
+    this.flagErrorHandler = handler;
+    if (handler !== null && NativeIntemptOrNull != null) {
+      flagErrorEmitter ??= new NativeEventEmitter(NativeIntemptOrNull);
+      this.flagErrorSubscription = flagErrorEmitter.addListener(FLAG_ERROR_EVENT, (event: NativeFlagErrorEvent) => {
+        if (event.instanceName !== this.instanceName) return;
+        const error: FlagError = { key: event.key, kind: event.kind };
+        if (event.status !== undefined) error.status = event.status;
+        try {
+          handler(error);
+        } catch {
+          // The native SDKs catch a throwing hook too: an app bug in it must not break flag reads.
+        }
+      });
+    }
+    NativeIntempt.setFlagErrorListener(this.instanceName, handler !== null).catch(() => undefined);
   }
 
   /**

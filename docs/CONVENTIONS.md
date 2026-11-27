@@ -23,31 +23,19 @@ to this repo. Where the two disagree, the contract wins and this file is the bug
   only a 60 s answer cache):
   the server buckets, so no second implementation can disagree with it. `check-no-local-bucketing.mjs`
   enforces this in CI and a new bucketing helper fails the build.
+- **A default object can come back as an equal copy.** When the native SDK answers a read with
+  no error code (an `off` or `killed` flag), the value it returns is its copy of your default, so
+  you get an equal object, not the same reference. Compare by value (accepted, Beso 2026-11-27).
 - **A flag read never throws (S11, SDK-ALIGN 2026-11-27).** A bad key, context or default returns
   the default with `reason: 'error'` and an `errorCode`, exactly as the native SDKs answer; a 5xx is
   absorbed the same way. Only calling before `init()` rejects.
 
 ## Credentials
 
-The evaluation endpoint requires a **server** credential, sent as HTTP **Basic** — not Bearer. A
-public key holds users and accounts and nothing else, and the response describes how every
-experience in the project targets, so a public key is refused there. Never log it, never put it in a
-URL.
-
-> **OPEN — `EXP-SERVE-004` (C) versus a React Native bundle. Not settled in this repo.**
->
-> `EXP-SERVE-004` requires a server credential on the SDK-surface evaluation endpoint, and its
-> stated rationale is that *"the key held by a customer's backend is the credential."* **A mobile
-> binary is not a backend.** Shipping a server credential in an IPA or an APK defeats the
-> requirement's own reasoning; evaluating with the public key `initialize()` already takes
-> contradicts its text. Spec §3.1 puts a mobile app in the SDK row explicitly, so this is the
-> endpoint RN flags evaluate against and the conflict is real, not hypothetical.
->
-> **This is a PO ruling, not an SDK repo's call, and it is not resolved here.** Owner: Sid.
-> Enforcement is presumably at the gateway and has not been read —
-> `audience-service`'s `SecurityConfiguration` declares no filter chain matching `choose-api` and
-> `ExperienceChooserHandler.chooseApi` performs no credential-class check. Do not pick a side in
-> this file; the requirement or the mobile path changes, and whichever it is happens upstream.
+The `/flags/*` routes (`evaluate`, `all`, `expose`, `stream`) and `choose-api` accept the
+**public** API key `init()` takes; audience-service's `PublicApiKeyDenyWebFilter` allows it on all
+of them (verified 2026-11-27, SDK-ALIGN PLAN §3). A mobile app ships no server credential. Never
+log the key, never put it in a URL.
 
 ## React Native specifics
 
