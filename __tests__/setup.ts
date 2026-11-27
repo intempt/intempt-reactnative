@@ -50,7 +50,8 @@ jest.mock('../src/NativeIntempt', () => {
     'getFlushInterval',
     'setFlushInterval',
     'products',
-    'variation',
+    'variationDetail',
+    'choose',
     'allFlags',
     'flagValue',
     'getAutomaticEvents',
@@ -85,6 +86,8 @@ jest.mock('../src/NativeIntempt', () => {
     flush: 0,
     getFlushInterval: 60,
     products: [],
+    variationDetail: {},
+    choose: [],
     getAutomaticEvents: {
       sessions: true,
       versionChanges: false,

@@ -47,12 +47,15 @@
     "setPushToken": "setPushToken(token) -> Bool",
     "trackPushOpen": "trackPushOpen(payload) -> Bool",
     "trackPushReceived": "trackPushReceived(payload) -> Bool",
-    "variation": "variation(key, context, defaultValue) -> { value }",
+    "variation": "variation(key, context?, defaultValue, {disableExposure}?) -> value",
     "allFlags": "allFlags(context) -> Map<key, value>",
     "boolVariation": "boolVariation(key, context, defaultValue: Bool) -> Bool",
     "stringVariation": "stringVariation(key, context, defaultValue: String) -> String",
     "numberVariation": "numberVariation(key, context, defaultValue: Number) -> Number",
-    "waitForInitialization": "waitForInitialization(timeout) -> Void"
+    "waitForInitialization": "waitForInitialization(timeout) -> Void",
+    "variationDetail": "variationDetail(key, context?, defaultValue, {disableExposure}?) -> {value, reason, errorCode?, error?, variationId?, valueType?, rule?, variant?}",
+    "jsonVariation": "jsonVariation(key, context?, defaultValue: JSON, {disableExposure}?) -> JSON",
+    "choose": "choose(context?, {names?, groups?, disableExposure?}) -> [Choice{name, group?, body, experienceId?, variantId?, reason?}]"
   },
   "diagnostics": {
     "getSdkVersion": "Bridged, but not a contract method. Reports the NATIVE SDK's version \u2014 intempt-swift or intempt-android \u2014 which is what someone debugging an integration needs and which no contract method exposes. Kept in its own category rather than notBridged, because it IS on the spec."

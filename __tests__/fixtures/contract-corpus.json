@@ -628,7 +628,7 @@
         ]
       },
       "native": {
-        "fn": "variation",
+        "fn": "variationDetail",
         "args": [
           "default",
           "checkout_v2",
@@ -636,7 +636,77 @@
             "userId": "u-1",
             "profileId": "p-1"
           },
-          {}
+          {
+            "value": false
+          },
+          false
+        ]
+      }
+    },
+    {
+      "method": "variationDetail",
+      "js": {
+        "fn": "variationDetail",
+        "args": [
+          "checkout_v2",
+          {
+            "userId": "u-1"
+          },
+          "control",
+          {
+            "disableExposure": true
+          }
+        ]
+      },
+      "native": {
+        "fn": "variationDetail",
+        "args": [
+          "default",
+          "checkout_v2",
+          {
+            "userId": "u-1"
+          },
+          {
+            "value": "control"
+          },
+          true
+        ]
+      }
+    },
+    {
+      "method": "choose",
+      "js": {
+        "fn": "choose",
+        "args": [
+          {
+            "userId": "u-1"
+          },
+          {
+            "names": [
+              "hero"
+            ],
+            "groups": [
+              "home"
+            ]
+          }
+        ]
+      },
+      "native": {
+        "fn": "choose",
+        "args": [
+          "default",
+          {
+            "userId": "u-1"
+          },
+          {
+            "names": [
+              "hero"
+            ],
+            "groups": [
+              "home"
+            ],
+            "disableExposure": false
+          }
         ]
       }
     },
@@ -665,9 +735,11 @@
   ],
   "excludedFromBridge": {
     "doNotCaptureText": "Takes an Android View. No cross-platform meaning and no bridge representation. Android-only, absent from the JavaScript surface entirely rather than exposed and broken. The only sanctioned permanent exception.",
-    "boolVariation": "JS-layer typed narrowing over variation. No native counterpart by design.",
-    "stringVariation": "JS-layer typed narrowing over variation. No native counterpart by design.",
-    "numberVariation": "JS-layer typed narrowing over variation. No native counterpart by design.",
-    "waitForInitialization": "Resolves immediately: evaluation is remote on both platforms, so there is no local flag store to wait for and no native call to make. Present so the cross-SDK surface is identical everywhere."
+    "boolVariation": "JS-layer typed read over the native variationDetail with a typed default, as the native SDKs define it. No native counterpart by design.",
+    "stringVariation": "JS-layer typed read over the native variationDetail with a typed default, as the native SDKs define it. No native counterpart by design.",
+    "numberVariation": "JS-layer typed read over the native variationDetail with a typed default, as the native SDKs define it. No native counterpart by design.",
+    "waitForInitialization": "Resolves immediately: evaluation is remote on both platforms, so there is no local flag store to wait for and no native call to make. Present so the cross-SDK surface is identical everywhere.",
+    "variation": "JS-layer read over the native variationDetail: the detail's value. Every flag read crosses the bridge as variationDetail so the native SDK owns reason, error code, type check and exposure.",
+    "jsonVariation": "JS-layer typed read over the native variationDetail with a JSON default, as the native SDKs define it. No native counterpart by design."
   }
 }
