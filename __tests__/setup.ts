@@ -52,6 +52,7 @@ jest.mock('../src/NativeIntempt', () => {
     'products',
     'variation',
     'allFlags',
+    'flagValue',
     'getAutomaticEvents',
     'setAutomaticEvents',
     'configureAutocapture',
@@ -92,6 +93,10 @@ jest.mock('../src/NativeIntempt', () => {
     getSdkVersion: '0.0.0-test',
   };
 
+  // Blocking synchronous on both bridges: they answer with a value, never a promise. A return
+  // set to a function is called with the native arguments, so a test can answer per key.
+  const SYNC = new Set(['flagValue']);
+
   return {
     __esModule: true,
     default: Object.fromEntries(
@@ -99,6 +104,13 @@ jest.mock('../src/NativeIntempt', () => {
         name,
         (...args: unknown[]) => {
           mockNativeCalls.push({ fn: name, args });
+          if (SYNC.has(name)) {
+            if (name in mockNativeRejections) throw mockNativeRejections[name];
+            const answer = mockNativeReturns[name];
+            return typeof answer === 'function'
+              ? (answer as (...a: unknown[]) => unknown)(...args)
+              : (answer ?? {});
+          }
           if (name in mockNativeRejections) {
             // Real native bridge rejections are plain {code, message, userInfo}
             // objects, not JS Error instances — this mock stays faithful to
