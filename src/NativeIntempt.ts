@@ -95,13 +95,20 @@ export interface Spec extends TurboModule {
   // Flags — a mobile SDK runs on a device and is still an `api`-channel consumer,
   // because there is no visual editor for a native surface: the value is authored
   // as a payload and the integrator writes the branch.
-  /** Resolves to `{value}`. Never rejects for a service failure. */
-  variation(
+  /**
+   * Resolves to the native FlagDetail: `{value, reason, errorCode?, error?, variationId?,
+   * valueType?, rule?, variant?}`. `defaultValue` is `{value}` so a null default can cross. Never
+   * rejects for a service failure or a bad key (S11).
+   */
+  variationDetail(
     instanceName: string,
     key: string,
     context: Object,
-    defaultValue: Object
+    defaultValue: Object,
+    disableExposure: boolean
   ): Promise<Object>;
+  /** `options` is `{names?, groups?, disableExposure}`. Resolves to Choice objects. */
+  choose(instanceName: string, context: Object, options: Object): Promise<Object[]>;
   /**
    * Resolves to `{id, keys}`: the served keys and a handle to the map, which stays native.
    * intempt-swift 0.7.0 and intempt-android 8.0.0 record an exposure when a value is read from

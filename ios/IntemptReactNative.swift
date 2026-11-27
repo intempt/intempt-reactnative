@@ -437,34 +437,49 @@ public class IntemptReactNative: NSObject {
 
     // MARK: - Flags
 
-    /// A native SDK runs on a device and is still an `api`-channel consumer: there is no visual
-    /// editor for a native surface, so the value is authored as a payload and the integrator
-    /// writes the branch.
-    ///
-    /// Never rejects for a service failure. The JS layer holds the caller's default and applies it
-    /// when `value` comes back absent, so a flag lookup cannot throw into a host app's render.
+    /// Every JS flag read: intempt-swift's `variationDetail`, which owns the reason, the error
+    /// code, the type check against `defaultValue` and the exposure. `defaultValue` arrives as
+    /// `{value}` so a null default can cross. Never rejects for a service failure or a bad key (S11).
     @objc
-    func variation(
+    func variationDetail(
         _ instanceName: String,
         key: String,
         context: [String: Any],
         defaultValue: [String: Any],
+        disableExposure: Bool,
         resolver resolve: @escaping RCTPromiseResolveBlock,
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
-        withInstance(instanceName, "variation", reject) { instance in
-            let flagContext = Self.flagContext(from: context, instance: instance)
+        withInstance(instanceName, "variationDetail", reject) { instance in
+            instance.variationDetail(
+                key: key,
+                context: Self.flagContext(from: context, instance: instance),
+                defaultValue: TypeBridge.json(from: defaultValue["value"] ?? NSNull()),
+                disableExposure: disableExposure
+            ) { detail in
+                resolve(TypeBridge.dictionary(from: detail))
+            }
+        }
+    }
 
-            instance.variation(
-                key: key, context: flagContext, defaultValue: .null
-            ) { value in
-                var out: [String: Any] = [:]
-                // `.null` and "absent" are the same to the JS layer, which then applies the
-                // caller's default. Encoding null as a value would defeat that.
-                if value != .null {
-                    out["value"] = TypeBridge.any(from: value)
-                }
-                resolve(out)
+    /// `options` is `{names?, groups?, disableExposure}`. Resolves to Choice dictionaries; the
+    /// SDK answers an empty list for a service failure, so this never rejects for one.
+    @objc
+    func choose(
+        _ instanceName: String,
+        context: [String: Any],
+        options: [String: Any],
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        withInstance(instanceName, "choose", reject) { instance in
+            instance.choose(
+                context: Self.flagContext(from: context, instance: instance),
+                names: options["names"] as? [String],
+                groups: options["groups"] as? [String],
+                disableExposure: options["disableExposure"] as? Bool ?? false
+            ) { choices in
+                resolve(choices.map(TypeBridge.dictionary(from:)))
             }
         }
     }

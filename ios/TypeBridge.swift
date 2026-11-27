@@ -79,6 +79,46 @@ enum TypeBridge {
         }
     }
 
+    /// A JS value as intempt-swift's JSONValue. Booleans before numbers: a JS boolean crosses as
+    /// a CFBoolean-backed NSNumber, and reading it as a number would make `true` a 1.
+    static func json(from raw: Any) -> JSONValue {
+        switch raw {
+        case let n as NSNumber:
+            if CFGetTypeID(n) == CFBooleanGetTypeID() { return .bool(n.boolValue) }
+            return .number(n.doubleValue)
+        case let s as String: return .string(s)
+        case let o as [String: Any]: return .object(o.mapValues { json(from: $0) })
+        case let a as [Any]: return .array(a.map { json(from: $0) })
+        default: return .null
+        }
+    }
+
+    /// FlagDetail as the JS `FlagDetail`: reason and error code in their wire spelling, optional
+    /// fields left out rather than sent as null.
+    static func dictionary(from detail: FlagDetail) -> [String: Any] {
+        var out: [String: Any] = ["value": any(from: detail.value), "reason": detail.reason.rawValue]
+        if let code = detail.errorCode { out["errorCode"] = code.rawValue }
+        if let error = detail.error {
+            var failure: [String: Any] = ["kind": error.kind.rawValue]
+            if let status = error.status { failure["status"] = status }
+            out["error"] = failure
+        }
+        if let id = detail.variationId { out["variationId"] = id }
+        if let type = detail.valueType { out["valueType"] = type }
+        if let rule = detail.rule { out["rule"] = rule }
+        if let variant = detail.variant { out["variant"] = variant }
+        return out
+    }
+
+    static func dictionary(from choice: Choice) -> [String: Any] {
+        var out: [String: Any] = ["name": choice.name, "body": any(from: choice.body)]
+        if let group = choice.group { out["group"] = group }
+        if let id = choice.experienceId { out["experienceId"] = id }
+        if let id = choice.variantId { out["variantId"] = id }
+        if let reason = choice.reason { out["reason"] = reason }
+        return out
+    }
+
     /// Decodes an APNs device token from its hex representation.
     ///
     /// `Data` does not cross the bridge, so React Native surfaces the token as

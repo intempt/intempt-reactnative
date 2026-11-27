@@ -87,6 +87,72 @@ export interface FlagContext {
 }
 
 /**
+ * Why a flag read answered what it did: the server's reason in its wire spelling, `cached` for the
+ * last known value served because the call failed, or `error` with a `FlagErrorCode`.
+ * `unanswered` comes from intempt-swift only (no reason on the wire); intempt-android reads that
+ * case as `off`.
+ */
+export type FlagReason =
+  | 'targeted'
+  | 'holdout'
+  | 'not_targeted'
+  | 'not_in_rollout'
+  | 'off'
+  | 'killed'
+  | 'not_client_side'
+  | 'cached'
+  | 'unanswered'
+  | 'error';
+
+/** Set when `reason` is `error` (S11). */
+export type FlagErrorCode = 'FLAG_NOT_FOUND' | 'TYPE_MISMATCH' | 'TARGETING_KEY_MISSING' | 'GENERAL';
+
+/** The failed request behind a `GENERAL` (or `FLAG_NOT_FOUND` on a 404) answer. */
+export interface FlagRequestError {
+  kind: 'auth' | 'bad_request' | 'server' | 'timeout' | 'network' | 'parse';
+  status?: number;
+}
+
+/** `variationDetail`'s answer, field for field the native SDKs' FlagDetail. */
+export interface FlagDetail<T = unknown> {
+  value: T;
+  reason: FlagReason;
+  errorCode?: FlagErrorCode;
+  error?: FlagRequestError;
+  variationId?: number;
+  valueType?: string;
+  rule?: number;
+  variant?: string;
+}
+
+export interface FlagReadOptions {
+  /**
+   * Evaluate without recording an exposure, for a value read ahead of rendering it. Leave it off
+   * where the value is shown: that read is what counts the person as exposed.
+   */
+  disableExposure?: boolean;
+}
+
+export interface ChooseOptions {
+  /** Only these experiences or personalizations, by name. */
+  names?: string[];
+  /** Only these groups. */
+  groups?: string[];
+  /** Evaluate without recording an exposure or spending a `once` assignment. */
+  disableExposure?: boolean;
+}
+
+/** One served experience or personalization. */
+export interface Choice {
+  name: string;
+  group?: string;
+  body: unknown;
+  experienceId?: number;
+  variantId?: number;
+  reason?: string;
+}
+
+/**
  * One recommended product.
  *
  * `attributes` holds whatever catalog columns were requested. The named

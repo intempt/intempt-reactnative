@@ -168,8 +168,7 @@ preserved — they are the evidence of the decision.
 ### Feature flags
 
 ```ts
-// Flags only. With intempt-swift 0.7.0 / intempt-android 8.0.0 underneath, an experiment or
-// personalization key no longer resolves here and returns your default.
+// Flags only. Experiments and personalizations are read with choose() (below).
 const on = await intempt.boolVariation('new_checkout', { userId: 'user-123' }, false);
 
 const copy = await intempt.stringVariation('checkout_copy', { userId: 'user-123' }, 'Buy now');
@@ -185,6 +184,15 @@ const theme = await intempt.variation<{ accent: string }>(
 
 const all = await intempt.allFlags({ userId: 'user-123' });
 if (all.new_checkout === true) { /* ... */ }
+
+// Why the value came back, and a read that records no exposure.
+const detail = await intempt.variationDetail('new_checkout', { userId: 'user-123' }, false, {
+  disableExposure: true,
+});
+// detail.reason: 'targeted' | 'off' | 'error' | ...; detail.errorCode on an error
+
+// Experiments and personalizations.
+const choices = await intempt.choose({ userId: 'user-123' }, { names: ['hero_banner'] });
 ```
 
 **`allFlags` records an exposure only for the keys you read.** The prefetch itself records
@@ -200,16 +208,15 @@ A flag lookup never throws for a service failure on either platform.
 read with `boolVariation` returns your default, not `true`. `Boolean('false')` is `true`, and
 a silent coercion is indistinguishable from a deliberate value.
 
-**A programming error does throw.** A blank key, a key outside `^[a-zA-Z0-9_-]+$` (the server's
-own pattern), or an `undefined` default is something you can fix, so it fails at the call site
-rather than quietly returning a default that looks like a flag being off.
+**A flag read never throws.** A blank key, a key outside `^[a-zA-Z0-9_-]+$` (the server's own
+pattern) or a missing context returns your default, as it does in the native SDKs;
+`variationDetail` reports it as `reason: 'error'` with an `errorCode` (`FLAG_NOT_FOUND`,
+`TARGETING_KEY_MISSING`, `TYPE_MISMATCH`, `GENERAL`).
 
 `FlagContext` takes `userId` and `profileId`, both optional. **Omit `profileId`** and the native
 SDK supplies the device identifier it already holds — the one that survives sign-in, and
 therefore the one that keeps a person's assignment stable across it.
 
-`variationDetail` is deliberately absent. See `docs/CONVENTIONS.md` for why, and for the
-requirement that is still open at the platform.
 
 > **Both native pins resolve to a release that carries the flag surface**, as of 2026-08-31:
 > `Intempt 0.2.0` on CocoaPods trunk and `com.intempt.sdk:intempt-android:3.1.0` on Maven Central.

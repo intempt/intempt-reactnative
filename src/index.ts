@@ -20,7 +20,14 @@ import {
 import type {
   AutocaptureOptions,
   AutomaticEventOptions,
+  Choice,
+  ChooseOptions,
   FlagContext,
+  FlagDetail,
+  FlagErrorCode,
+  FlagReadOptions,
+  FlagReason,
+  FlagRequestError,
   IntemptConfig,
   IntemptProperties,
   IntemptValue,
@@ -38,7 +45,14 @@ export {
 export type {
   AutocaptureOptions,
   AutomaticEventOptions,
+  Choice,
+  ChooseOptions,
   FlagContext,
+  FlagDetail,
+  FlagErrorCode,
+  FlagReadOptions,
+  FlagReason,
+  FlagRequestError,
   IntemptConfig,
   IntemptProperties,
   IntemptValue,
@@ -134,38 +148,9 @@ function requireNonBlank(value: string, field: string): void {
   }
 }
 
-/**
- * A flag key the serving endpoint can actually match.
- *
- * `CONVENTIONS.md`: a validation mistake throws, a service problem does not. This is the
- * validation half, and without it the promise was not kept — `variation()` passed anything
- * straight to the bridge.
- *
- * The character class is the server's own: `ExperienceApiChooseRequest.names` is
- * `Set<@Pattern(regexp = "^[a-zA-Z0-9_-]*$") String>`. Two ways that quantifier lets a caller
- * error reach production silently, both closed here:
- *
- *  - `*` ACCEPTS THE EMPTY STRING, so a blank key is a valid request that matches no experience.
- *  - A key with a dot or a space is a 400, which the SDK absorbs like any other service failure —
- *    so a typo returns the caller's default and looks exactly like a flag that is off.
- *
- * Both are programming errors the caller can fix, so they fail loudly at the call site.
- */
-function requireFlagKey(key: string, method: string): void {
-  if (typeof key !== 'string' || key.length === 0) {
-    throw new IntemptError(
-      IntemptErrorCode.MissingConfiguration,
-      'key must be a non-empty string',
-      { method }
-    );
-  }
-  if (!/^[a-zA-Z0-9_-]+$/.test(key)) {
-    throw new IntemptError(
-      IntemptErrorCode.MissingConfiguration,
-      `key must match /^[a-zA-Z0-9_-]+$/ — received ${JSON.stringify(key)}`,
-      { method }
-    );
-  }
+/** A non-object context sends none; the native SDK then fills in the device's profileId. */
+function flagContext(context: unknown): object {
+  return typeof context === 'object' && context !== null ? context : {};
 }
 
 interface NativeFlagMap {
@@ -482,37 +467,67 @@ export class IntemptInstance {
   // MARK: - Flags
 
   /**
-   * The flag's value for `key`, or `defaultValue` when the service did not answer.
+   * The flag's value for `key`, or `defaultValue` when it was not served or the read failed.
+   * Flags only: an experiment or personalization is read with `choose`.
    *
-   * Flags only (intempt-swift 0.7.0 / intempt-android 8.0.0 read `/flags/evaluate`, which records
-   * the exposure). An experiment or personalization key no longer resolves here: the native
-   * `choose()` that replaces it is not bridged.
+   * One native read (`/flags/evaluate`, which records the exposure; a 60 s cache while the flag
+   * stream is connected). Never throws for a bad key, context or service failure (S11):
+   * `variationDetail` says why the default came back.
    */
-  async variation<T>(key: string, context: FlagContext, defaultValue: T): Promise<T> {
-    requireFlagKey(key, 'variation');
-    if (defaultValue === undefined) {
-      // A default of `undefined` is indistinguishable from omitting one: the absent-value branch
-      // below returns it either way, so the caller cannot tell a served value from a failure.
-      // CONVENTIONS.md calls the default REQUIRED; this is where that is true.
-      throw new IntemptError(
-        IntemptErrorCode.MissingConfiguration,
-        'defaultValue is required — it is what a caller receives when the service does not answer',
-        { method: 'variation' }
-      );
-    }
+  async variation<T>(
+    key: string,
+    context: FlagContext | undefined,
+    defaultValue: T,
+    options?: FlagReadOptions
+  ): Promise<T> {
+    return (await this.variationDetail(key, context, defaultValue, options)).value;
+  }
 
-    const raw = (await this.call('variation', () =>
-      NativeIntempt.variation(
+  /**
+   * `variation` plus why: the native SDK's reason, error code and served variation. A served value
+   * whose type does not match `defaultValue` answers the default with `TYPE_MISMATCH`; a null or
+   * undefined default accepts any type.
+   */
+  async variationDetail<T>(
+    key: string,
+    context: FlagContext | undefined,
+    defaultValue: T,
+    options?: FlagReadOptions
+  ): Promise<FlagDetail<T>> {
+    if (typeof key !== 'string') {
+      // Native answers an invalid key this way too; a non-string cannot cross the bridge to it.
+      return { value: defaultValue, reason: 'error', errorCode: 'FLAG_NOT_FOUND' };
+    }
+    const answer = (await this.call('variationDetail', () =>
+      NativeIntempt.variationDetail(
         this.instanceName,
         key,
-        context as object,
-        // The default is sent for shape only; the native side never reads it. This layer holds
-        // the real one and applies it below, so a service failure cannot reject into a render.
-        {}
+        flagContext(context),
+        { value: defaultValue ?? null },
+        options?.disableExposure === true
       )
-    )) as { value?: T };
+    )) as Partial<FlagDetail<T>> | null;
+    if (answer == null || typeof answer.reason !== 'string') {
+      return { value: defaultValue, reason: 'error', errorCode: 'GENERAL' };
+    }
+    // The default crossed the bridge as a copy: hand back the caller's own value, not the copy.
+    const value = answer.errorCode === undefined && answer.value !== undefined ? answer.value : defaultValue;
+    return { ...answer, value } as FlagDetail<T>;
+  }
 
-    return raw?.value === undefined ? defaultValue : raw.value;
+  /**
+   * The experiences and personalizations served to this person (`/optimization/choose-api`),
+   * filtered by `names` and `groups`. Records each one's exposure unless `disableExposure`.
+   * Never rejects for a service failure: the native SDKs answer an empty list.
+   */
+  async choose(context?: FlagContext, options?: ChooseOptions): Promise<Choice[]> {
+    const request: Record<string, unknown> = { disableExposure: options?.disableExposure === true };
+    if (options?.names !== undefined) request.names = options.names;
+    if (options?.groups !== undefined) request.groups = options.groups;
+    const choices = await this.call('choose', () =>
+      NativeIntempt.choose(this.instanceName, flagContext(context), request)
+    );
+    return Array.isArray(choices) ? (choices as Choice[]) : [];
   }
 
   /**
@@ -522,33 +537,58 @@ export class IntemptInstance {
    * allFlags, F32). `Object.keys` and `in` record nothing; a spread, `Object.entries` or
    * `JSON.stringify` reads, and so exposes, every key.
    */
-  async allFlags(context: FlagContext): Promise<Record<string, unknown>> {
+  async allFlags(context?: FlagContext): Promise<Record<string, unknown>> {
     const served = await this.call('allFlags', () =>
-      NativeIntempt.allFlags(this.instanceName, context as object)
+      NativeIntempt.allFlags(this.instanceName, flagContext(context))
     );
     return exposingFlags(served);
   }
 
-  async boolVariation(key: string, context: FlagContext, defaultValue: boolean): Promise<boolean> {
-    const value = await this.variation<unknown>(key, context, defaultValue);
-    // A served value of the wrong type is a misconfiguration, not something to coerce:
-    // Boolean('false') is true, and a silent coercion is indistinguishable from a real answer.
+  /** A boolean flag. A served value of another type answers `defaultValue` (TYPE_MISMATCH). */
+  async boolVariation(
+    key: string,
+    context: FlagContext | undefined,
+    defaultValue: boolean,
+    options?: FlagReadOptions
+  ): Promise<boolean> {
+    const value = await this.variation<unknown>(key, context, defaultValue, options);
+    // The native SDK already checks the type; this keeps a wrong answer from ever being coerced.
     return typeof value === 'boolean' ? value : defaultValue;
   }
 
-  async stringVariation(key: string, context: FlagContext, defaultValue: string): Promise<string> {
-    const value = await this.variation<unknown>(key, context, defaultValue);
+  async stringVariation(
+    key: string,
+    context: FlagContext | undefined,
+    defaultValue: string,
+    options?: FlagReadOptions
+  ): Promise<string> {
+    const value = await this.variation<unknown>(key, context, defaultValue, options);
     return typeof value === 'string' ? value : defaultValue;
   }
 
-  async numberVariation(key: string, context: FlagContext, defaultValue: number): Promise<number> {
-    const value = await this.variation<unknown>(key, context, defaultValue);
+  async numberVariation(
+    key: string,
+    context: FlagContext | undefined,
+    defaultValue: number,
+    options?: FlagReadOptions
+  ): Promise<number> {
+    const value = await this.variation<unknown>(key, context, defaultValue, options);
     // EQUIVALENT MUTANT on the typeof operand. Number.isFinite does not coerce — unlike the
     // global isFinite — so it returns true only for values already of type number, and the
     // operand cannot change the outcome. It is not removable: Number.isFinite carries no type
     // predicate, so without it tsc reports "Type 'unknown' is not assignable to type 'number'".
     // Stryker disable next-line ConditionalExpression: equivalent, see the note above
     return typeof value === 'number' && Number.isFinite(value) ? value : defaultValue;
+  }
+
+  /** A JSON flag: any served JSON value; the default only when nothing usable was served. */
+  jsonVariation<T = unknown>(
+    key: string,
+    context: FlagContext | undefined,
+    defaultValue: T,
+    options?: FlagReadOptions
+  ): Promise<T> {
+    return this.variation(key, context, defaultValue, options);
   }
 
   /**

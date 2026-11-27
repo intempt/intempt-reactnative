@@ -400,52 +400,58 @@ class IntemptReactNativeModule(
     // ---------------------------------------------------------------------
 
     /**
-     * A native SDK runs on a device and is still an `api`-channel consumer: there is no visual
-     * editor for a native surface, so the value is authored as a payload and the integrator writes
-     * the branch.
+     * Every JS flag read: intempt-android's `variationDetail`, which owns the reason, the error code,
+     * the type check against `defaultValue` and the exposure. `defaultValue` arrives as `{value}` so
+     * a null default can cross.
      *
-     * intempt-android's flag methods are `suspend`, so they are launched on [scope] rather than
-     * blocking the bridge thread. This module had no coroutine machinery before; the alternative
-     * was runBlocking, which parks a React Native worker for the length of a network round trip.
-     *
-     * Never rejects for a service failure. The JS layer holds the caller's default and applies it
-     * when `value` comes back absent, so a flag lookup cannot throw into a host app's render.
+     * The SDK's flag methods are `suspend`, so they run on [scope] rather than blocking the bridge
+     * thread. Never rejects for a service failure or a bad key (S11): the SDK answers the default
+     * with a reason, and an unexpected throw is logged and answered as GENERAL, as the SDK would.
      */
     @ReactMethod
-    fun variation(
+    fun variationDetail(
         instanceName: String,
         key: String,
         context: ReadableMap,
         defaultValue: ReadableMap,
+        disableExposure: Boolean,
         promise: Promise,
-    ) = withInstance(instanceName, "variation", promise) { instance ->
+    ) = withInstance(instanceName, "variationDetail", promise) { instance ->
+        val fallback = defaultValue.toHashMap()["value"]
         scope.launch {
-            try {
-                val value =
-                    instance.variation(
-                        key,
-                        ReadableMapConverter.toFlagContext(context),
-                        null,
+            val fields =
+                try {
+                    flagDetailFields(
+                        instance.variationDetail(key, ReadableMapConverter.toFlagContext(context), fallback, disableExposure),
                     )
-                promise.resolve(
-                    Arguments.createMap().apply {
-                        // Absent and null are the same to the JS layer, which then applies the
-                        // caller's default. Encoding null as a value would defeat that.
-                        value?.let { putValue(this, "value", it) }
-                    },
-                )
-            } catch (e: Exception) {
-                // A service problem is ABSORBED, never rejected. CONVENTIONS.md, the doc comment
-                // above and src/NativeIntempt.ts all promise the caller's default on a failure,
-                // and the iOS path has no rejecting branch at all. Rejecting here propagated a
-                // 5xx out of variation() into the host app's render, which is the opposite of
-                // what a kill switch is for. Resolving an empty map leaves `value` absent, and
-                // absent is exactly what makes the JS layer apply the caller's default.
-                //
-                // Absorbed is not silent: the failure is logged so it stays diagnosable.
-                Log.w(NAME, "variation(" + key + ") failed; resolving to the caller's default", e)
-                promise.resolve(Arguments.createMap())
-            }
+                } catch (e: Exception) {
+                    Log.w(NAME, "variationDetail(" + key + ") failed; resolving to the caller's default", e)
+                    mapOf("value" to fallback, "reason" to "error", "errorCode" to "GENERAL")
+                }
+            promise.resolve(writableMap(fields))
+        }
+    }
+
+    /** `options` is `{names?, groups?, disableExposure}`. Never rejects for a service failure. */
+    @ReactMethod
+    fun choose(
+        instanceName: String,
+        context: ReadableMap,
+        options: ReadableMap,
+        promise: Promise,
+    ) = withInstance(instanceName, "choose", promise) { instance ->
+        val names = ReadableMapConverter.toStringList(if (options.hasKey("names")) options.getArray("names") else null)
+        val groups = ReadableMapConverter.toStringList(if (options.hasKey("groups")) options.getArray("groups") else null)
+        val disableExposure = options.hasKey("disableExposure") && options.getBoolean("disableExposure")
+        scope.launch {
+            val choices =
+                try {
+                    instance.choose(names, groups, ReadableMapConverter.toFlagContext(context), disableExposure)
+                } catch (e: Exception) {
+                    Log.w(NAME, "choose failed; resolving to no choices", e)
+                    emptyList()
+                }
+            promise.resolve(writableArray(choices.map(::choiceFields)))
         }
     }
 

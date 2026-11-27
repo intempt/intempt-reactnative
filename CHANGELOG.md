@@ -10,8 +10,7 @@ release may be tagged before it is green.
 
 - **`variation` and the typed variations read feature flags only.** Both native SDKs now read
   `/flags/evaluate` instead of `/optimization/choose-api`. A key that names an experiment or a
-  personalization returns your default. The native replacement, `choose()`, is not bridged by this
-  package.
+  personalization returns your default; read those with `choose()` (below).
 - **`allFlags` records an exposure only for the keys you read.** The native SDKs record a flag's
   exposure when its value is read from the allFlags map. The bridge used to copy the whole map
   into JavaScript, which with these pins would have exposed every served flag on every call. The
@@ -19,9 +18,28 @@ release may be tagged before it is green.
   fetches that value (synchronously, once per object) and records its exposure. `Object.keys` and
   `in` record nothing; a spread, `Object.entries` or `JSON.stringify` reads, and exposes, every key.
   An object read after 128 newer `allFlags` calls answers `undefined` for keys it had not read yet.
-- Flag reads in the native SDKs keep a 60 s cache while their flag stream is connected, and an
-  invalid key returns the default there instead of throwing. This package still rejects a blank or
-  malformed key in JavaScript before it reaches the bridge.
+- **A flag read never throws (S11).** A blank or malformed key, a missing or non-object context,
+  or an `undefined` default no longer throws `MissingConfiguration`: the read returns the default,
+  and `variationDetail` says why (`reason: 'error'`, `errorCode: 'FLAG_NOT_FOUND'` for a bad key,
+  as the native SDKs answer). An `undefined` default is sent as `null`, which accepts any type.
+  Calling before `init()` still rejects with `not_initialized`.
+- Every flag read now crosses the bridge as the native `variationDetail`, so the native SDK owns
+  the reason, the type check against your default (`TYPE_MISMATCH`) and the exposure. Native reads
+  keep a 60 s cache while their flag stream is connected.
+
+### Added
+
+- **`choose(context?, {names?, groups?, disableExposure?})`** resolves the served experiences and
+  personalizations as `Choice` objects (`name`, `group`, `body`, `experienceId`, `variantId`,
+  `reason`), the native SDKs' `choose()`. An empty list when the service does not answer.
+- **`variationDetail(key, context, defaultValue, {disableExposure}?)`** resolves `FlagDetail`:
+  `value`, `reason` (wire spelling: `targeted`, `not_in_rollout`, `off`, `killed`, `cached`,
+  `error`, ...), `errorCode`, `error` (`kind`, `status`), `variationId`, `valueType`, `rule`,
+  `variant`. iOS can answer `unanswered` (no reason on the wire); Android reads that case as `off`.
+- **`jsonVariation`**, and **`{disableExposure: true}`** on every flag read, to evaluate without
+  recording an exposure (a pre-render or prefetch read the person may never see).
+- `context` is optional on every flag read, `allFlags` and `choose`; omitted, the native SDK uses
+  the device's profileId.
 
 ## 0.5.1 — unreleased
 

@@ -162,11 +162,19 @@ RCT_EXTERN_METHOD(setFlushInterval
 
 // MARK: - Flags
 
-RCT_EXTERN_METHOD(variation
+RCT_EXTERN_METHOD(variationDetail
                   : (NSString *)instanceName key
                   : (NSString *)key context
                   : (NSDictionary *)context defaultValue
-                  : (NSDictionary *)defaultValue resolver
+                  : (NSDictionary *)defaultValue disableExposure
+                  : (BOOL)disableExposure resolver
+                  : (RCTPromiseResolveBlock)resolve rejecter
+                  : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(choose
+                  : (NSString *)instanceName context
+                  : (NSDictionary *)context options
+                  : (NSDictionary *)options resolver
                   : (RCTPromiseResolveBlock)resolve rejecter
                   : (RCTPromiseRejectBlock)reject)
 

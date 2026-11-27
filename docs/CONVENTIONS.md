@@ -8,38 +8,24 @@ to this repo. Where the two disagree, the contract wins and this file is the bug
 ## The rules that come from the contract
 
 - **`variation` reads flags only** (intempt-swift 0.7.0 / intempt-android 8.0.0, SDK-ALIGN D20).
-  Experiments and personalizations are read with the native SDKs' `choose()`, which this package does
-  not bridge yet; an experiment key passed to `variation` returns the default.
-- **`defaultValue` is REQUIRED, everywhere.** It is what a caller receives on a network failure, a
+  Experiments and personalizations are read with `choose()`, bridged to the native SDKs' own; an
+  experiment key passed to `variation` returns the default.
+- **`defaultValue` is part of every read.** It is what a caller receives on a network failure, a
   timeout, an unknown key or a malformed response. An SDK that throws when the service is
   unreachable takes the application down with it, which is the opposite of what a kill switch is for.
 - **A wrong-typed value falls back; it is never coerced.** A flag configured as a string and read as
   a boolean returns the caller's default, not `true`. Coercion makes a misconfiguration look like a
   deliberate value.
-- **`variationDetail` is NOT exposed — and that is `EXP-SERVE-001` pending at the platform, not a
-  closed decision.** It would carry a reason, and the serving response does not send one:
-  `audience-service`'s `ExperienceApiChoose` carries `name`, `group` and `body` and nothing else,
-  so the method could only report "off" for a person who was in fact targeted and served, which is
-  the single thing such a method exists to tell you. Do not re-add it against today's wire, and do
-  not document it on a docs page.
-
-  **What this repo owes, stated plainly.** `EXP-SERVE-001` (H) says *"the evaluation response
-  carries a reason, so a caller can distinguish a deliberate off state from a request the service
-  did not answer — an absent entry must not be the encoding of both."* `EXP-SERVE-005` (H) says the
-  same from the other side and is scenario-covered at S28. **This SDK encodes both as absent at all
-  three layers**, because there is nothing else it can decode. The requirement is unmet here and the
-  platform half is where it gets met.
-
-  `variation` returns `Promise<T>`, so there is no channel a reason can arrive on later. **When the
-  platform sends a reason, closing `EXP-SERVE-001` in this SDK is a BREAKING MAJOR**, not an
-  additive change — the return shape has to widen. Recorded rather than pre-reserved: the return
-  shape is set by `intempt-swift/docs/SDK-API-CONTRACT.md`, and this repo does not get to reserve a
-  field in a cross-SDK contract on its own.
-- **Evaluation is REMOTE only.** No local rule engine, no flag store to poll, and no hashing utility:
+- **`variationDetail` carries the reason** (`EXP-SERVE-001`): the `/flags` routes send one, and
+  every read crosses the bridge as the native `variationDetail`, so a deliberate off state and an
+  unanswered request are distinct (`off` vs `error` with an `errorCode`).
+- **Evaluation is the server's.** No local rule engine and no hashing utility (the native SDKs keep
+  only a 60 s answer cache):
   the server buckets, so no second implementation can disagree with it. `check-no-local-bucketing.mjs`
   enforces this in CI and a new bucketing helper fails the build.
-- **A validation mistake throws; a service problem does not.** A blank key or a missing default is a
-  programming error the caller can fix, so it fails loudly at the call site. A 5xx is absorbed.
+- **A flag read never throws (S11, SDK-ALIGN 2026-11-27).** A bad key, context or default returns
+  the default with `reason: 'error'` and an `errorCode`, exactly as the native SDKs answer; a 5xx is
+  absorbed the same way. Only calling before `init()` rejects.
 
 ## Credentials
 

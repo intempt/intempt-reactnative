@@ -103,6 +103,16 @@ describe('variationDetail', () => {
     });
   });
 
+  it('treats a native answer without a reason as an error with the default', async () => {
+    const s = await sdk();
+    nativeReturns.variationDetail = { value: 'blue' };
+    await expect(s.variationDetail('banner', {}, 'red')).resolves.toEqual({
+      value: 'red',
+      reason: 'error',
+      errorCode: 'GENERAL',
+    });
+  });
+
   it('sends an empty context when none is given', async () => {
     const s = await sdk();
     await s.variationDetail('banner', undefined, 'red');
@@ -139,10 +149,11 @@ describe('a bad key or context returns the default, never throws (S11)', () => {
     expect(nativeCalls).toEqual([]);
   });
 
-  it('sends an empty context for one that is not an object', async () => {
+  it('sends an empty context for one that is not an object, or null', async () => {
     const s = await sdk();
     await s.variation('banner', 'u-1' as unknown as object, 'red');
-    expect(nativeCalls[0]!.args[2]).toEqual({});
+    await s.variation('banner', null as unknown as object, 'red');
+    expect(nativeCalls.map((c) => c.args[2])).toEqual([{}, {}]);
   });
 });
 
