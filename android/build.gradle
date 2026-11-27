@@ -101,7 +101,13 @@ dependencies {
   // are sent once (only 503/429 get one resend), DeliveryFailureListener changed shape (the bridge
   // implements none), group() without a title is named "Identify" instead of "Group", and allFlags
   // stops recording exposures. track/identify/group/consent keep returning the queued Boolean.
-  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '7.0.0'}"
+  //
+  // 8.0.0 is BREAKING: variation reads flags only (/flags/evaluate; experiments and
+  // personalizations moved to choose(), which this bridge does not wrap), and the allFlags map
+  // records an exposure when a value is read (get, values, entries). Its signature is unchanged,
+  // so a whole-map copy still compiles and would expose every served flag; the bridge keeps the
+  // map native and reads one key per JS read (FlagMaps).
+  implementation "com.intempt.sdk:intempt-android:${project.findProperty('intemptAndroidVersion') ?: '8.0.0'}"
 
   // JsonLeaves.kt and FlagValueTest import kotlinx.serialization.json directly, so the bridge
   // declares it rather than leaning on intempt-android's transitive copy (2.0.1 shipped it as

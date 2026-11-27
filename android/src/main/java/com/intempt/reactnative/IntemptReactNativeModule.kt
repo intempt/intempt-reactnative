@@ -60,6 +60,8 @@ class IntemptReactNativeModule(
      */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    private val flagMaps = FlagMaps()
+
     override fun invalidate() {
         scope.cancel()
         super.invalidate()
@@ -455,12 +457,11 @@ class IntemptReactNativeModule(
     ) = withInstance(instanceName, "allFlags", promise) { instance ->
         scope.launch {
             try {
-                val values = instance.allFlags(ReadableMapConverter.toFlagContext(context))
+                val handle = flagMaps.register(instance.allFlags(ReadableMapConverter.toFlagContext(context)))
                 promise.resolve(
                     Arguments.createMap().apply {
-                        values.forEach { (name, value) ->
-                            if (value == null) putNull(name) else putValue(this, name, value)
-                        }
+                        putString("id", handle.id)
+                        putArray("keys", Arguments.fromList(handle.keys))
                     },
                 )
             } catch (e: Exception) {
@@ -471,6 +472,21 @@ class IntemptReactNativeModule(
             }
         }
     }
+
+    /**
+     * One value from a map [allFlags] registered: `{value}` when [key] was served (a served null
+     * included), `{}` otherwise. This read is what records the key's exposure (intempt-android
+     * 8.0.0), so it happens only when JS reads the key. Synchronous because JS answers a plain
+     * property read with it.
+     */
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    fun flagValue(
+        mapId: String,
+        key: String,
+    ): WritableMap =
+        Arguments.createMap().apply {
+            flagMaps.read(mapId, key)?.let { putValue(this, "value", it.value) }
+        }
 
     /**
      * A flag payload is arbitrary JSON, so it crosses with its type preserved.

@@ -168,6 +168,64 @@ function requireFlagKey(key: string, method: string): void {
   }
 }
 
+interface NativeFlagMap {
+  id?: unknown;
+  keys?: unknown;
+}
+
+/**
+ * The allFlags answer: the served keys, each value fetched from the native map on first read.
+ *
+ * Both native SDKs record an exposure when a value is read from their allFlags map, so the map
+ * stays native and only a key the app reads crosses the bridge. Anything malformed is an empty
+ * answer: a flag read never throws into a render.
+ */
+function exposingFlags(served: unknown): Record<string, unknown> {
+  const { id, keys } = (served ?? {}) as NativeFlagMap;
+  const listed = typeof id === 'string' && Array.isArray(keys) ? keys : [];
+  const flags: Record<string, unknown> = {};
+  for (const key of listed) {
+    // defineProperty, not assignment: a served `__proto__` key must be an own property.
+    Object.defineProperty(flags, String(key), {
+      value: undefined,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
+  }
+  const fetched = new Set<PropertyKey>();
+  return new Proxy(flags, {
+    get(target, property, receiver) {
+      if (
+        // Stryker disable next-line ConditionalExpression: equivalent, a symbol is never an own key here so hasOwnProperty rejects it too; the typeof narrows for tsc
+        typeof property === 'string' &&
+        Object.prototype.hasOwnProperty.call(target, property) &&
+        !fetched.has(property)
+      ) {
+        fetched.add(property);
+        target[property] = nativeFlagValue(id as string, property);
+      }
+      return Reflect.get(target, property, receiver) as unknown;
+    },
+    set(target, property, value, receiver) {
+      // A value the caller wrote is theirs: no later read may replace it with the served one.
+      fetched.add(property);
+      return Reflect.set(target, property, value, receiver);
+    },
+  });
+}
+
+function nativeFlagValue(mapId: string, key: string): unknown {
+  try {
+    // A null answer throws here and so reads as absent, like any failed read.
+    return (NativeIntempt.flagValue(mapId, key) as { value?: unknown }).value;
+  }
+  // Stryker disable next-line BlockStatement: equivalent, an emptied catch also returns undefined
+  catch {
+    return undefined;
+  }
+}
+
 /**
  * One configured Intempt instance.
  *
@@ -424,10 +482,11 @@ export class IntemptInstance {
   // MARK: - Flags
 
   /**
-   * The value assigned for `key`, or `defaultValue` when the service did not answer.
+   * The flag's value for `key`, or `defaultValue` when the service did not answer.
    *
-   * Ask for a KEY, never a mode. Whether the key names an experiment, a personalization or a flag
-   * is the platform's business: its serving query filters on channel and status and never on mode.
+   * Flags only (intempt-swift 0.7.0 / intempt-android 8.0.0 read `/flags/evaluate`, which records
+   * the exposure). An experiment or personalization key no longer resolves here: the native
+   * `choose()` that replaces it is not bridged.
    */
   async variation<T>(key: string, context: FlagContext, defaultValue: T): Promise<T> {
     requireFlagKey(key, 'variation');
@@ -456,11 +515,18 @@ export class IntemptInstance {
     return raw?.value === undefined ? defaultValue : raw.value;
   }
 
-  /** Every key assigned to this person, in one call. */
+  /**
+   * Every flag served to this person, in one call that records no exposure.
+   *
+   * Reading a key's value records that flag's exposure, once per returned object (intempt-node's
+   * allFlags, F32). `Object.keys` and `in` record nothing; a spread, `Object.entries` or
+   * `JSON.stringify` reads, and so exposes, every key.
+   */
   async allFlags(context: FlagContext): Promise<Record<string, unknown>> {
-    return (await this.call('allFlags', () =>
+    const served = await this.call('allFlags', () =>
       NativeIntempt.allFlags(this.instanceName, context as object)
-    )) as Record<string, unknown>;
+    );
+    return exposingFlags(served);
   }
 
   async boolVariation(key: string, context: FlagContext, defaultValue: boolean): Promise<boolean> {
@@ -489,8 +555,8 @@ export class IntemptInstance {
    * Resolves immediately.
    *
    * Present so the cross-SDK surface is the same everywhere, and so a caller porting from an SDK
-   * that polls a local flag store does not have to remove the call. Evaluation is remote on both
-   * native platforms: each `variation` is a request, so there is no local state to wait for.
+   * that polls a local flag store does not have to remove the call. Neither native SDK loads a flag
+   * store before it can answer: a read asks the server, or a cache that read filled.
    */
   waitForInitialization(timeoutMs?: number): Promise<void> {
     // Not `async`: there is nothing to await, and marking it so only to satisfy a shape trips

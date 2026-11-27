@@ -500,9 +500,22 @@ public class IntemptReactNative: NSObject {
             let flagContext = Self.flagContext(from: context, instance: instance)
 
             instance.allFlags(context: flagContext) { values in
-                resolve(values.mapValues { TypeBridge.any(from: $0) })
+                let id = Self.flagMaps.register(values)
+                resolve(["id": id, "keys": values.keys])
             }
         }
+    }
+
+    private static let flagMaps = FlagMaps<FlagValues>()
+
+    /// One value from a map `allFlags` registered: `{value}` when `key` was served (a served null
+    /// included), `{}` otherwise. The subscript is what records the key's exposure (intempt-swift
+    /// 0.7.0), so it runs only when JS reads the key; `keys` records nothing. Synchronous because
+    /// JS answers a plain property read with it.
+    @objc
+    func flagValue(_ mapId: String, key: String) -> [String: Any] {
+        guard let value = Self.flagMaps.map(mapId)?[key] else { return [:] }
+        return ["value": TypeBridge.any(from: value)]
     }
 
     // MARK: - Personalization

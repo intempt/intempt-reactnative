@@ -176,6 +176,10 @@ RCT_EXTERN_METHOD(allFlags
                   : (RCTPromiseResolveBlock)resolve rejecter
                   : (RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN__BLOCKING_SYNCHRONOUS_METHOD(flagValue
+                                        : (NSString *)mapId key
+                                        : (NSString *)key)
+
 // MARK: - Personalization
 
 RCT_EXTERN_METHOD(products

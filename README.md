@@ -168,9 +168,8 @@ preserved — they are the evidence of the decision.
 ### Feature flags
 
 ```ts
-// Ask for a KEY, never a mode. Whether the key names an experiment, a personalization
-// or a flag is the platform's business — its serving query filters on channel and
-// status and never on mode, so this call does not change when that does.
+// Flags only. With intempt-swift 0.7.0 / intempt-android 8.0.0 underneath, an experiment or
+// personalization key no longer resolves here and returns your default.
 const on = await intempt.boolVariation('new_checkout', { userId: 'user-123' }, false);
 
 const copy = await intempt.stringVariation('checkout_copy', { userId: 'user-123' }, 'Buy now');
@@ -185,7 +184,13 @@ const theme = await intempt.variation<{ accent: string }>(
 );
 
 const all = await intempt.allFlags({ userId: 'user-123' });
+if (all.new_checkout === true) { /* ... */ }
 ```
+
+**`allFlags` records an exposure only for the keys you read.** The prefetch itself records
+nothing; reading `all.new_checkout` records that flag's exposure once for that object.
+`Object.keys(all)` and `'new_checkout' in all` record nothing, but a spread, `Object.entries`
+or `JSON.stringify(all)` reads, and so exposes, every flag in it.
 
 **`defaultValue` is required, and it is a real decision.** It is what renders when Intempt
 cannot be reached — a 5xx, a timeout, an unknown key. Choose the behaviour you already have.

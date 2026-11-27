@@ -63,12 +63,17 @@ Pod::Spec.new do |s|
   # (INT-5604) and 0.6.2 stops the SDK sending "Session end", which the server writes itself
   # (INT-5603). RN apps on iOS only get those fixes through this pin.
   #
+  # 0.7.0 is BREAKING: variation reads flags only (/flags/evaluate; experiments and
+  # personalizations moved to choose(), which this bridge does not wrap), and allFlags completes
+  # with FlagValues, which records an exposure when a value is read. The bridge therefore keeps
+  # that map native and reads one key per JS read (FlagMaps), never the whole map.
+  #
   # Exact rather than '~> 0.3': this bridge compiles against symbols it does not own, so a
   # new SDK minor should not reach a customer's build before this repo's CI has seen it.
   #
   # `npm run check:native-pins` resolves this against trunk on every CI run and downloads
   # what it selects to confirm the symbol is really in there. Do not tag while it is red.
-  s.dependency 'Intempt', '0.6.2'
+  s.dependency 'Intempt', '0.7.0'
 
   # install_modules_dependencies wires React-Core, and on the new architecture
   # also ReactCommon, RCT-Folly, glog and the generated spec. Available in

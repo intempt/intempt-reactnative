@@ -57,7 +57,7 @@ STUB
 
 # `import React` would pull in the real framework, which is not present here.
 sed 's/^import React$//' "$HERE/ios/IntemptReactNative.swift" > "$WORK/IntemptReactNative.swift"
-cp "$HERE/ios/TypeBridge.swift" "$WORK/"
+cp "$HERE/ios/TypeBridge.swift" "$HERE/ios/FlagMaps.swift" "$WORK/"
 
 echo "typechecking the bridge against Intempt ..."
 swiftc -typecheck -I "$BUILD/Modules" -I "$BUILD" "$WORK"/*.swift

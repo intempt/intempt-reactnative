@@ -96,7 +96,7 @@ describe('allFlags', () => {
     const flags = await (await sdk()).allFlags({});
 
     expect(flags.checkout_v2).toBeUndefined();
-    expect(flags.toString).toBe(Object.prototype.toString);
+    expect(Object.prototype.toString.call(flags)).toBe('[object Object]');
     expect((flags as Record<symbol, unknown>)[Symbol.iterator]).toBeUndefined();
     expect(reads()).toEqual([]);
   });
@@ -114,6 +114,28 @@ describe('allFlags', () => {
     const flags = await (await sdk()).allFlags({});
     expect(flags.banner).toBeUndefined();
     expect(reads()).toEqual([['map-1', 'banner']]);
+  });
+
+  it('answers undefined when the native read answers null', async () => {
+    serve();
+    nativeReturns.flagValue = () => null;
+    const flags = await (await sdk()).allFlags({});
+    expect(flags.banner).toBeUndefined();
+  });
+
+  it('is a plain record the caller may change', async () => {
+    serve();
+    const flags = await (await sdk()).allFlags({});
+    expect(delete flags.banner).toBe(true);
+    expect(Object.keys(flags)).toEqual(['checkout_v2', 'limits', 'retired']);
+    flags.banner = 'red';
+    flags.limits = 'none';
+    expect(flags.banner).toBe('red');
+    expect(flags.limits).toBe('none');
+    const symbol = Symbol('caller');
+    (flags as Record<symbol, unknown>)[symbol] = 1;
+    expect((flags as Record<symbol, unknown>)[symbol]).toBe(1);
+    expect(reads()).toEqual([]);
   });
 
   it('answers undefined when the native read throws, rather than throwing into a render', async () => {

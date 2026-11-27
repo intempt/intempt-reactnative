@@ -102,7 +102,14 @@ export interface Spec extends TurboModule {
     context: Object,
     defaultValue: Object
   ): Promise<Object>;
+  /**
+   * Resolves to `{id, keys}`: the served keys and a handle to the map, which stays native.
+   * intempt-swift 0.7.0 and intempt-android 8.0.0 record an exposure when a value is read from
+   * that map, so no value crosses here; `flagValue` reads one per key the app reads.
+   */
   allFlags(instanceName: string, context: Object): Promise<Object>;
+  /** Blocking synchronous: `{value}` for a served key (null included), `{}` otherwise. */
+  flagValue(mapId: string, key: string): Object;
 
   // Personalization — feeds.
   products(

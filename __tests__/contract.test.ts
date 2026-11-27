@@ -43,8 +43,12 @@ function rehydrate(value: unknown): unknown {
   return value;
 }
 
-/** Contract methods that exist on the native spec but not as instance methods. */
-const NON_INSTANCE_METHODS = new Set(['initialize', 'getSdkVersion']);
+/** Spec methods with no instance method of their own; read off the contract file, as check-corpus does. */
+const NON_INSTANCE_METHODS = new Set([
+  'initialize',
+  ...Object.keys(contractMethods.diagnostics),
+  ...Object.keys(contractMethods.bridgeInternal),
+]);
 
 async function freshInstance(): Promise<IntemptInstance> {
   __resetInstanceRegistryForTests();

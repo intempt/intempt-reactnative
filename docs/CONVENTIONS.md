@@ -7,10 +7,9 @@ to this repo. Where the two disagree, the contract wins and this file is the bug
 
 ## The rules that come from the contract
 
-- **A caller asks for a KEY, never a mode.** The platform resolves whether a key is an experiment, a
-  personalization or a flag; its serving query filters on channel and status and never on mode. A
-  method name that encodes the mode forces an integrator to know the answer before they can ask the
-  question, and grows combinatorially with every mode added.
+- **`variation` reads flags only** (intempt-swift 0.7.0 / intempt-android 8.0.0, SDK-ALIGN D20).
+  Experiments and personalizations are read with the native SDKs' `choose()`, which this package does
+  not bridge yet; an experiment key passed to `variation` returns the default.
 - **`defaultValue` is REQUIRED, everywhere.** It is what a caller receives on a network failure, a
   timeout, an unknown key or a malformed response. An SDK that throws when the service is
   unreachable takes the application down with it, which is the opposite of what a kill switch is for.

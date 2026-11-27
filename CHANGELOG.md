@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+**BREAKING.** Pins intempt-swift (CocoaPods `Intempt`) 0.7.0 and intempt-android 8.0.0, both
+semver-major. Neither is published yet: `npm run check:native-pins` is red until they are, and no
+release may be tagged before it is green.
+
+### Changed
+
+- **`variation` and the typed variations read feature flags only.** Both native SDKs now read
+  `/flags/evaluate` instead of `/optimization/choose-api`. A key that names an experiment or a
+  personalization returns your default. The native replacement, `choose()`, is not bridged by this
+  package.
+- **`allFlags` records an exposure only for the keys you read.** The native SDKs record a flag's
+  exposure when its value is read from the allFlags map. The bridge used to copy the whole map
+  into JavaScript, which with these pins would have exposed every served flag on every call. The
+  map now stays native: `allFlags` resolves an object listing the served keys, and reading a key
+  fetches that value (synchronously, once per object) and records its exposure. `Object.keys` and
+  `in` record nothing; a spread, `Object.entries` or `JSON.stringify` reads, and exposes, every key.
+  An object read after 128 newer `allFlags` calls answers `undefined` for keys it had not read yet.
+- Flag reads in the native SDKs keep a 60 s cache while their flag stream is connected, and an
+  invalid key returns the default there instead of throwing. This package still rejects a blank or
+  malformed key in JavaScript before it reaches the bridge.
+
 ## 0.5.1 — unreleased
 
 Bumps the pinned intempt-swift (CocoaPods `Intempt`) from 0.6.0 to 0.6.2. iOS only; the JS API

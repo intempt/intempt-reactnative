@@ -40,7 +40,10 @@ const specMethods = [
 // `initialize` is module-level rather than an instance method, and diagnostics
 // carry no contract obligation. Both are exercised by index.test.ts rather than
 // by a corpus fixture.
-const diagnostics = new Set(Object.keys(contract.diagnostics ?? {}));
+const diagnostics = new Set([
+  ...Object.keys(contract.diagnostics ?? {}),
+  ...Object.keys(contract.bridgeInternal ?? {}),
+]);
 const NON_INSTANCE = new Set(['initialize', ...diagnostics]);
 const excluded = new Set(Object.keys(corpus.excludedFromBridge ?? {}));
 
@@ -147,7 +150,7 @@ const undocumented = specMethods.filter(
 if (undocumented.length) {
   problems.push(
     `spec methods with no contract entry: ${undocumented.join(', ')} ` +
-      `(add to contract-methods.json methods, or to its diagnostics section)`
+      `(add to contract-methods.json methods, or to its diagnostics or bridgeInternal section)`
   );
 }
 if (missing.length) {
